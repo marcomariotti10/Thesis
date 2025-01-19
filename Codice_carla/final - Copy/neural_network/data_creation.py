@@ -30,16 +30,13 @@ def load_points_grid_map(csv_file):
                 ]
             points.append(coordinates)
     np_points = np.array(points)
-    print(np_points)
     return np_points
 
 def generate_grid_map (grid_map_path):
-    grid_map_files = [f for f in os.listdir(grid_map_path) if f.endswith('.cvs')]
-
+    grid_map_files = [f for f in os.listdir(grid_map_path)]
     list_grid_maps = []
 
     for file in grid_map_files:
-        print(file)
         complete_path = os.path.join(grid_map_path, file)
         print(f"Loading {file}...")
         points = load_points_grid_map(complete_path)
@@ -62,25 +59,26 @@ def load_points_grid_map_BB (csv_file):
     heights = []
     with open(csv_file, 'r') as file:
         reader = csv.reader(file)
+        next(reader)  # Skip header
+        
         for row in reader:
             # Extract the 3D coordinates of the 8 bounding box vertices
             coordinates = [ [ float(row[i]), float(row[i+1]) ] for i in range(2, 10, 2)]
             height = (float(row[10]))
             points.append(coordinates)
             heights.append(height)
+
     np_points = np.array(points)
     np_heights = np.array(heights)
     return np_points, np_heights
 
 def generate_grid_map_BB (grid_map_path):
-    grid_map_files = [f for f in os.listdir(grid_map_path) if f.endswith('.cvs')]
-
+    grid_map_files = [f for f in os.listdir(grid_map_path)]
     list_grid_maps = []
 
     for file in grid_map_files:
-        print(file)
         grid_map_path = os.path.join(grid_map_path, file)
-        print(f"Loading {file}...")
+
         points, heights = load_points_grid_map_BB(grid_map_path)
 
         # Recreate the grid map from positions array
@@ -99,6 +97,6 @@ def split_data(lidar_data, BB_data):
         lidar_data, # Samples
         BB_data, # Labels
         test_size = 0.1,
-        random_state=SEED
+        random_state=SEED # type: ignore
     )
     return X_train_val, X_test, y_train_val, y_test
