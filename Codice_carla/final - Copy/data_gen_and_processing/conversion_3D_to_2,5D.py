@@ -32,20 +32,19 @@ def generate_grid_map(ply_directory, folder_path):
         y_range = Y_RANGE
 
         # Initialize the grid map
-        grid_map = np.full((y_range, x_range), -np.inf)
+        grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
 
         for point in points:
             x, y, z = point
             x_idx = int((x - x_min) / grid_resolution)
             y_idx = int((y - y_min) / grid_resolution)
-            #print(x, y, z,x_idx, y_idx)
-            grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], int(z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
+            grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 
-        mode_height = mode(points[:, 2])[0][0]
-        grid_map[grid_map == -np.inf] = (mode_height /grid_resolution)
+        #mode_height = mode(points[:, 2])[0][0]
+        #grid_map[grid_map == -np.inf] = (mode_height /grid_resolution)
 
         # Find the indices where grid_map values are different from the minimum value
-        non_zero_indices = np.nonzero(grid_map != (mode_height/grid_resolution))
+        non_zero_indices = np.nonzero(grid_map != FLOOR_HEIGHT)
 
         # Extract the values at these indices
         values = grid_map[non_zero_indices]
@@ -65,7 +64,7 @@ def generate_grid_map(ply_directory, folder_path):
         file_path = os.path.join(folder_path, filename)
 
         # Save the grid map to the specified folder
-        np.savetxt(file_path, positions, delimiter=",")
+        np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
 
         print(f"Grid map saved to {file_path}")
 

@@ -35,12 +35,13 @@ MIN_HEIGHT = -60.0
 # For Conversion_BB_into_2,5D
 REDUCING_RANGE = 0.5 # It can't be set too low because can be generated a bounnfing box with only two points (because we also want the bounging box of cars half out the grid)
 
-# For Conversion_3D_to_2,5D
+# For Conversion_3D_to_2,5D and Conversion_BB_into_2,5D
 GRID_RESOLUTION = 0.1
 X_RANGE = 400   #Used also in show_grid_map
 Y_RANGE = 400   #Used also in show_grid_map
 X_MIN = 20      #Used also in show_grid_map
 Y_MIN = 20      #Used also in show_grid_map
+FLOOR_HEIGHT = -100
 
 # For Show_lidar_data and Show_grid_map
 LIDAR_FILE_1 = "20250118_102730_613409_169516"

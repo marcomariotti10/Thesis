@@ -136,7 +136,7 @@ def convert_BB_into_25D(BB_path, folder_path) :
 
         for vertic in bounding_box_vertices:
             # Initialize the grid map
-            grid_map = np.full((y_range, x_range), -np.inf)
+            grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
             for point in vertic:
                 x, y, z = point
                 x_idx = int((x - x_min) / grid_resolution)
@@ -149,9 +149,9 @@ def convert_BB_into_25D(BB_path, folder_path) :
                     y_idx = -1
                 if (y_idx < -Y_RANGE):  
                     y_idx = 0
-                grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], int(z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
+                grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 
-            non_zero_indices = np.nonzero(grid_map != -np.inf)
+            non_zero_indices = np.nonzero(grid_map != FLOOR_HEIGHT)
             
             # Extract the values at these indices
             values = grid_map[non_zero_indices]
@@ -186,7 +186,7 @@ def convert_BB_into_25D(BB_path, folder_path) :
 
                 #all_positions.append(positions)
 
-        data = [{"actor_id": actor_id, "label" : label,"vertice_1x" : vert[0][1] ,"vertice_1y" : vert[0][0], "vertice_2x" : vert[1][1],"vertice_2y" : vert[1][0], "vertice_3x" : vert[2][1], "vertice_3y" : vert[2][0], "vertice_4x" : vert[3][1],"vertice_4y" : vert[3][0], "height" : vert[0][2]} for actor_id, label, vert in zip(bounding_box_ids , bounding_box_labels, all_positions) ]
+        data = [{"actor_id": actor_id, "label" : label,"vertice_1x" : vert[0][1] ,"vertice_1y" : vert[0][0], "vertice_2x" : vert[1][1],"vertice_2y" : vert[1][0], "vertice_3x" : vert[2][1], "vertice_3y" : vert[2][0], "vertice_4x" : vert[3][1],"vertice_4y" : vert[3][0], "height" : f"{((vert[0][2] + vert[1][2] + vert[2][2] + vert[3][2])/4):.2f}"} for actor_id, label, vert in zip(bounding_box_ids , bounding_box_labels, all_positions) ]
         
         path = os.path.join(folder_path, file)
 

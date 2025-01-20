@@ -88,7 +88,7 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
         y_range = Y_RANGE
 
         # Recreate the grid map from positions array
-        grid_map_recreate = np.full((y_range, x_range), min_height)
+        grid_map_recreate = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
 
         # Fill the grid map with values from positions array
         for pos in points:
