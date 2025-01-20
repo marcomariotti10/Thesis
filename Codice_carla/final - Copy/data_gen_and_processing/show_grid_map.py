@@ -41,9 +41,9 @@ def load_bounding_box(csv_file):
         for row in reader:
             # Extract the 3D coordinates of the 8 bounding box vertices
             vertices = [
-                [float(row[i]), float(row[i + 1]), float(row[10])] for i in range(2, 10, 2)
+                [float(row[i]), float(row[i + 1]), float(row[i + 2])] for i in range(2, 12, 3)
             ] + [
-                [float(row[i]), float(row[i + 1]), min_height] for i in range(2, 10, 2)
+                [float(row[i]), float(row[i + 1]), min_height] for i in range(2, 12, 3)
             ]
             bounding_box_vertices.append(vertices)
     bounding_boxes = np.array(bounding_box_vertices)

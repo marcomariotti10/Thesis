@@ -186,19 +186,35 @@ def convert_BB_into_25D(BB_path, folder_path) :
 
                 #all_positions.append(positions)
 
-        data = [{"actor_id": actor_id, "label" : label,"vertice_1x" : vert[0][1] ,"vertice_1y" : vert[0][0], "vertice_2x" : vert[1][1],"vertice_2y" : vert[1][0], "vertice_3x" : vert[2][1], "vertice_3y" : vert[2][0], "vertice_4x" : vert[3][1],"vertice_4y" : vert[3][0], "height" : f"{((vert[0][2] + vert[1][2] + vert[2][2] + vert[3][2])/4):.2f}"} for actor_id, label, vert in zip(bounding_box_ids , bounding_box_labels, all_positions) ]
-        
+        data = [
+            {
+                "actor_id": actor_id,
+                "label": label,
+                "x1": vert[0][1], "y1": vert[0][0], "h1": f"{vert[0][2]:.2f}",
+                "x2": vert[1][1], "y2": vert[1][0], "h2": f"{vert[1][2]:.2f}",
+                "x3": vert[2][1], "y3": vert[2][0], "h3": f"{vert[2][2]:.2f}",
+                "x4": vert[3][1], "y4": vert[3][0], "h4": f"{vert[3][2]:.2f}"
+            }
+            for actor_id, label, vert in zip(bounding_box_ids, bounding_box_labels, all_positions)
+        ]
+
         path = os.path.join(folder_path, file)
 
         # Create the folder if it doesn't exist
         os.makedirs(folder_path, exist_ok=True)
 
         with open(path, 'w', newline='') as file:
-            fieldnames = ['actor_id', 'label', 'vertice_1x','vertice_1y', 'vertice_2x', 'vertice_2y', 'vertice_3x', 'vertice_3y', 'vertice_4x', 'vertice_4y', 'height']
+            fieldnames = [
+                'actor_id', 'label',
+                'x1', 'y1', 'h1',
+                'x2', 'y2', 'h2',
+                'x3', 'y3', 'h3',
+                'x4', 'y4', 'h4'
+            ]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
-            # Write the header 
-            writer.writeheader() 
-            # Write the rows 
+            # Write the header
+            writer.writeheader()
+            # Write the rows
             writer.writerows(data)
 
 if __name__ == "__main__":
