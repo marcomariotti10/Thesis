@@ -70,8 +70,8 @@ def convert_BB_into_25D(BB_path, folder_path) :
     csv_files = [f for f in os.listdir(BB_path) if f.endswith('.csv')]
 
     for file in csv_files:
-        reader = csv.reader(open(os.path.join(BB_path, file)))
         print("Loading file: ",file)
+        reader = csv.reader(open(os.path.join(BB_path, file)))
 
         bounding_box_vertices = []
         bounding_box_ids = []

@@ -75,10 +75,10 @@ if __name__ == "__main__":
     new_path_1_grid = LIDAR_1_GRID_DIRECTORY
 
     path_lidar_2 = LIDAR_2_DIRECTORY
-    new_path_output_2_grid = LIDAR_2_GRID_DIRECTORY
+    new_path_2_grid = LIDAR_2_GRID_DIRECTORY
 
     path_lidar_3 = LIDAR_3_DIRECTORY
-    new_path_output_3_grid = LIDAR_3_GRID_DIRECTORY
+    new_path_3_grid = LIDAR_3_GRID_DIRECTORY
 
     while True:
         user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
@@ -86,15 +86,15 @@ if __name__ == "__main__":
             generate_grid_map(path_lidar_1, new_path_1_grid)
             break
         elif user_input == '2':
-            generate_grid_map(path_lidar_2, new_path_output_2_grid)
+            generate_grid_map(path_lidar_2, new_path_2_grid)
             break
         elif user_input == '3':
-            generate_grid_map(path_lidar_3, new_path_output_3_grid)
+            generate_grid_map(path_lidar_3, new_path_3_grid)
             break
         elif user_input == '4':
             generate_grid_map(path_lidar_1, new_path_1_grid)
-            generate_grid_map(path_lidar_2, new_path_output_2_grid)
-            generate_grid_map(path_lidar_3, new_path_output_3_grid)
+            generate_grid_map(path_lidar_2, new_path_2_grid)
+            generate_grid_map(path_lidar_3, new_path_3_grid)
             break
         else:
             print("Invalid input. Please enter 1, 2, 3 or 4.")

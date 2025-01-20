@@ -138,7 +138,7 @@ def visualize_ply_with_bounding_boxes(ply_directory, csv_directory, specific_ply
     for i, ply_file in enumerate(ply_files) : 
         # Create Open3D Visualizer
         vis = o3d.visualization.Visualizer()
-        vis.create_window(window_name='Open3D', width=1920, height=1200, left=0, top=30, visible=True)
+        vis.create_window(window_name='Open3D', width=1920, height=1200, left=0, top=80, visible=True)
 
         # Load .ply file (point cloud)
         ply_path = os.path.join(ply_directory, ply_file)

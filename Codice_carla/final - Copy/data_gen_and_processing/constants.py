@@ -18,12 +18,15 @@ LIDAR_DIRECTORY = DATA_HOME + r'\1_original'
 
 NEW_POSITION_LIDAR_1_DIRECTORY = DATA_HOME + r'\2_new_positions\new_positions_lidar1'
 NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'\4_positions_grid_map\new_positions_lidar1_grid'
+POSITION_LIDAR_1_GRID_NO_BB = DATA_HOME + r'\5_positions_grid_map_no_BB\new_positions_lidar1_grid_no_BB'
 
 NEW_POSITION_LIDAR_2_DIRECTORY = DATA_HOME + r'\2_new_positions\new_positions_lidar2'
 NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY = DATA_HOME + r'\4_positions_grid_map\new_positions_lidar2_grid'
+POSITION_LIDAR_2_GRID_NO_BB = DATA_HOME + r'\5_positions_grid_map_no_BB\new_positions_lidar2_grid_no_BB'
 
 NEW_POSITION_LIDAR_3_DIRECTORY = DATA_HOME + r'\2_new_positions\new_positions_lidar3'
 NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY = DATA_HOME + r'\4_positions_grid_map\new_positions_lidar3_grid'
+POSITION_LIDAR_3_GRID_NO_BB = DATA_HOME + r'\5_positions_grid_map_no_BB\new_positions_lidar3_grid_no_BB'
 
 SIMULATION_DIR = HOME_DIR + r'\simulation_data'
 CONFIG_DIR = HOME_DIR + r'\config'
@@ -44,9 +47,15 @@ Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = "20250118_102730_613409_169516"
+LIDAR_FILE_1 = "0250118_102745_762304_169898"
 LIDAR_FILE_2 = "20250118_102636_727556_168423"
 LIDAR_FILE_3 = "20250118_102716_454293_169283"
+
+# For Eliminate_BB_without_points
+INCREMENT_BB_PEDESTRIAN = 2
+NUM_MIN_POINTS_VEHICLE = 10
+NUM_MIN_POINTS_PEDESTRIAN = 1
+HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 
 # For Neural_network
 SEED = 42

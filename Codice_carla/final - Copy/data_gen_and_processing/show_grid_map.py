@@ -139,17 +139,17 @@ if __name__ == "__main__":
             user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3: ")
             if user_input == '1':
                 path_lidar = LIDAR_1_GRID_DIRECTORY
-                new_position_path = NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY
+                new_position_path = POSITION_LIDAR_1_GRID_NO_BB
                 lidar_file = LIDAR_FILE_1
                 break
             elif user_input == '2':
                 path_lidar = LIDAR_2_GRID_DIRECTORY
-                new_position_path = NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY
+                new_position_path = POSITION_LIDAR_2_GRID_NO_BB
                 lidar_file = LIDAR_FILE_2
                 break
             elif user_input == '3':
                 path_lidar = LIDAR_3_GRID_DIRECTORY
-                new_position_path = NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY
+                new_position_path = POSITION_LIDAR_3_GRID_NO_BB
                 lidar_file = LIDAR_FILE_3
                 break
             else:
