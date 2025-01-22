@@ -139,13 +139,13 @@ def convert_BB_into_25D(BB_path, folder_path) :
             grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
             for point in vertic:
                 x, y, z = point
-                x_idx = int((x - x_min) / grid_resolution)
-                if(x_idx > 0): #Checks needed to implement the functionality of considering the bounding box that are half out the grid
+                x_idx = int((x - x_min) / grid_resolution) -1
+                if(x_idx >= 0): #Checks needed to implement the functionality of considering the bounding box that are half out the grid
                     x_idx = -1
                 if (x_idx < -X_RANGE):
                     x_idx = 0
-                y_idx = int((y - y_min) / grid_resolution)
-                if(y_idx > 0):
+                y_idx = int((y - y_min) / grid_resolution) -1
+                if(y_idx >= 0):
                     y_idx = -1
                 if (y_idx < -Y_RANGE):  
                     y_idx = 0
