@@ -36,8 +36,8 @@ def generate_grid_map(ply_directory, folder_path):
 
         for point in points:
             x, y, z = point
-            x_idx = int((x - x_min) / grid_resolution) -1
-            y_idx = int((y - y_min) / grid_resolution) -1
+            x_idx = int((x - x_min) / grid_resolution)
+            y_idx = int((y - y_min) / grid_resolution)
             grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 
         #mode_height = mode(points[:, 2])[0][0]

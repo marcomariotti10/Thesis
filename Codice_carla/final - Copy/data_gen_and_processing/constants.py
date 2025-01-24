@@ -40,8 +40,8 @@ REDUCING_RANGE = 0.5 # It can't be set too low because can be generated a bounnf
 
 # For Conversion_3D_to_2,5D and Conversion_BB_into_2,5D
 GRID_RESOLUTION = 0.1
-X_RANGE = 401   #Used also in show_grid_map
-Y_RANGE = 401   #Used also in show_grid_map
+X_RANGE = 400   #Used also in show_grid_map
+Y_RANGE = 400   #Used also in show_grid_map
 X_MIN = 20      #Used also in show_grid_map
 Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
