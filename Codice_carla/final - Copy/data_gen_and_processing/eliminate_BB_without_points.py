@@ -14,7 +14,7 @@ def extract_smaller_grid(grid_map_recreate, positions, label):
     min_y, max_y = min(y_coords), max(y_coords)
 
     # Extract the smaller grid, considering a margin for pedestrians because the BB is too small
-    if(label == "vehicle"):
+    if(label == "vehicle" or label == "bicycle"):
         smaller_grid = grid_map_recreate[min_y:max_y, min_x:max_x]
     else:
         if min_y - 1 < 0:
@@ -105,6 +105,9 @@ def eliminate_BB(path_lidar, path_BB, new_path_output):
             non_zero_indices = np.nonzero(smaller_grid > MIN_HEIGHT + HEIGHT_OFFSET)
             if (labels[i] == "vehicle"):
                 if len(non_zero_indices[0]) < NUM_MIN_POINTS_VEHICLE:
+                    bounding_boxes_without_points.append(i)
+            elif (labels[i] == "bicycle"): 
+                if len(non_zero_indices[0]) < NUM_MIN_POINTS_BICYCLE:
                     bounding_boxes_without_points.append(i)
             else:
                 if len(non_zero_indices[0]) < NUM_MIN_POINTS_PEDESTRIAN:

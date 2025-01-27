@@ -54,6 +54,7 @@ LIDAR_FILE_3 = "20250118_102716_454293_169283"
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2
 NUM_MIN_POINTS_VEHICLE = 10
+NUM_MIN_POINTS_BICYCLE = 5
 NUM_MIN_POINTS_PEDESTRIAN = 1
 HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 

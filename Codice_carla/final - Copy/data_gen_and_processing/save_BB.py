@@ -27,15 +27,20 @@ def retrieve_actor_positions():
     sen = world.get_actors().filter('sensor.*')
 
     pedestrians = []
-    vehicles = []
+    car = []
+    bicycle = []
     sensors = []
 
     for p in ped :
         pedestrians.append(p.id)
 
     for v in veh :
-        vehicles.append(v.id)
-
+        wheels = v.attributes.get('number_of_wheels', 'unknown')
+        if wheels == '2':
+            bicycle.append(v.id)
+        else:
+            car.append(v.id)
+    
     for s in sen :
         sensors.append(s.id)
     
@@ -63,8 +68,9 @@ def retrieve_actor_positions():
     
     for ids in id:
         if (ids in pedestrians) : labels.append("pedestrian")
-        elif (ids in vehicles) : labels.append("vehicle")
         elif (ids in sensors) : labels.append("sensor")
+        elif (ids in car) : labels.append("car")
+        elif (ids in bicycle) : labels.append("bicycle")
         else : labels.append("other")
 
     # Create the new folder if it doesn't exist
