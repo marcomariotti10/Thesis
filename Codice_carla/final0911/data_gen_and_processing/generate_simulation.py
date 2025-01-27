@@ -124,6 +124,7 @@ if __name__ == "__main__":
         all_id = []
 
         blueprints = get_actor_blueprints(world, args.filterv, args.generationv)
+        #blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 2]
         blueprintsWalkers = get_actor_blueprints(world, args.filterw, args.generationw)
         blueprints = sorted(blueprints, key=lambda bp: bp.id)
 

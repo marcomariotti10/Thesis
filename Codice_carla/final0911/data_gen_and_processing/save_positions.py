@@ -94,7 +94,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
         print('THE TWO LIST HAS DIFFERENT LENGHTS') 
         sys.exit(1)
 
-    print(positions_files)
+    #print(positions_files)
     complete_file_name = [name + ".csv" for name in positions_files]
 
     # Create the new folder if it doesn't exist
@@ -112,7 +112,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
         # Copy the file
         if os.path.exists(source_file):  # Check if file exists before copying
             shutil.copy(source_file, destination_file)
-            print(f"Copied and renamed: {file_name} to {new_file_name}")
+            #print(f"Copied and renamed: {file_name} to {new_file_name}")
         else:
             print(f"File not found: {file_name}")
     return new_file_names
@@ -121,7 +121,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
 def modify_positions(new_file_names, new_path_position, number_lidar):
     for file in new_file_names:
         csv_path = os.path.join(new_path_position, file)
-        print(f"Loading {file}...")
+        #print(f"Loading {file}...")
         df = pd.read_csv(csv_path)
 
         # Select all columns except the first two

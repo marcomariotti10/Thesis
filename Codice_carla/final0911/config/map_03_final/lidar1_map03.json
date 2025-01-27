@@ -17,7 +17,7 @@
                     "bp_type": "sensor.lidar.ray_cast",
                     "bp_parameters" : {
                         "role_name":            "lidar",
-                        "range":                "20.0",
+                        "range":                "30.0",
                         "upper_fov":            "0.0",
                         "lower_fov":            "-90.0",
                         "channels":             "128.0",

@@ -70,7 +70,7 @@ def convert_BB_into_25D(BB_path, folder_path) :
     csv_files = [f for f in os.listdir(BB_path) if f.endswith('.csv')]
 
     for file in csv_files:
-        print("Loading file: ",file)
+        #print("Loading file: ",file)
         reader = csv.reader(open(os.path.join(BB_path, file)))
 
         bounding_box_vertices = []
@@ -241,8 +241,11 @@ if __name__ == "__main__":
             break
         elif user_input == '4':
             convert_BB_into_25D(path_lidar_1_positions, path_BB_1_grid)
+            print("Lidar 1 done")
             convert_BB_into_25D(path_lidar_2_positions, path_BB_2_grid)
+            print("Lidar 2 done")
             convert_BB_into_25D(path_lidar_3_positions, path_BB_3_grid)
+            print("Lidar 3 done")
             break
         else:
             print("Invalid input. Please enter 1, 2, 3 or 4.")

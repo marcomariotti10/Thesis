@@ -1,3 +1,15 @@
+import glob
+import os
+import sys
+import time
+try:
+    sys.path.append(glob.glob('C:/Users/marco/Desktop/CARLA_0.9.11/WindowsNoEditor/PythonAPI/carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
 import carla
 import random
 import json
@@ -7,7 +19,7 @@ import subprocess
 from utility import *
 from local_sim_utility import *
 from spawn_objects import *
-from constants import *
+
 
 LOCAL = True
 SEED = 42

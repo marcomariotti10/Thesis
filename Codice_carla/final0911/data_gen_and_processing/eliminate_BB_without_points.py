@@ -14,7 +14,7 @@ def extract_smaller_grid(grid_map_recreate, positions, label):
     min_y, max_y = min(y_coords), max(y_coords)
 
     # Extract the smaller grid, considering a margin for pedestrians because the BB is too small
-    if(label == "vehicle"):
+    if(label == "vehicle" or label == "bicycle"):
         smaller_grid = grid_map_recreate[min_y:max_y, min_x:max_x]
     else:
         if min_y - 1 < 0:
@@ -76,7 +76,7 @@ def eliminate_BB(path_lidar, path_BB, new_path_output):
 
     # Loop through each file
     for i, file in enumerate(lidar_files):
-        print("Loading file: ",file)
+        #print("Loading file: ",file)
         complete_path_lidar = os.path.join(path_lidar, file)
 
         # Load the lidar data points
@@ -93,7 +93,7 @@ def eliminate_BB(path_lidar, path_BB, new_path_output):
         # Get the points of BB
         BB_file = BB_files[i]
         BB_path = os.path.join(path_BB, BB_file)
-        print(f"Loading {BB_file}...")
+        #print(f"Loading {BB_file}...")
         bounding_box_vertices, labels = load_bounding_box(BB_path)
 
         # Create a list to store the bounding boxes with points
@@ -105,6 +105,9 @@ def eliminate_BB(path_lidar, path_BB, new_path_output):
             non_zero_indices = np.nonzero(smaller_grid > MIN_HEIGHT + HEIGHT_OFFSET)
             if (labels[i] == "vehicle"):
                 if len(non_zero_indices[0]) < NUM_MIN_POINTS_VEHICLE:
+                    bounding_boxes_without_points.append(i)
+            elif (labels[i] == "bicycle"): 
+                if len(non_zero_indices[0]) < NUM_MIN_POINTS_BICYCLE:
                     bounding_boxes_without_points.append(i)
             else:
                 if len(non_zero_indices[0]) < NUM_MIN_POINTS_PEDESTRIAN:
@@ -140,8 +143,11 @@ if __name__ == "__main__":
             break
         elif user_input == '4':
             eliminate_BB(path_lidar_1, path_1_grid, new_path_output1)
+            print("Lidar 1 done")
             eliminate_BB(path_lidar_2, path_2_grid, new_path_output2)
+            print("Lidar 2 done")
             eliminate_BB(path_lidar_3, path_3_grid, new_path_output3)
+            print("Lidar 3 done")
             break
         else:
             print("Invalid input. Please enter 1, 2, 3 or 4.")

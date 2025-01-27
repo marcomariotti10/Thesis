@@ -11,7 +11,7 @@ def generate_grid_map(ply_directory, folder_path):
     for file in ply_files:
         # Extract file
         ply_path = os.path.join(ply_directory, file)
-        print(f"Loading {file}...")
+        #print(f"Loading {file}...")
         pcd = o3d.io.read_point_cloud(ply_path)
         # Extract points as numpy array
         points = np.asarray(pcd.points)
@@ -36,9 +36,10 @@ def generate_grid_map(ply_directory, folder_path):
 
         for point in points:
             x, y, z = point
-            x_idx = int((x - x_min) / grid_resolution)
-            y_idx = int((y - y_min) / grid_resolution)
-            grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
+            if (x > -x_min and x < x_min and y > -y_min and y < y_min):
+                x_idx = int((x - x_min) / grid_resolution)
+                y_idx = int((y - y_min) / grid_resolution)
+                grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 
         #mode_height = mode(points[:, 2])[0][0]
         #grid_map[grid_map == -np.inf] = (mode_height /grid_resolution)
@@ -66,7 +67,7 @@ def generate_grid_map(ply_directory, folder_path):
         # Save the grid map to the specified folder
         np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
 
-        print(f"Grid map saved to {file_path}")
+        #print(f"Grid map saved to {file_path}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ HOME = r'C:\Users\marco\Desktop\Tesi'   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'\data_map03_0911'
 
-HOME_DIR = HOME + r'\Codice_carla\final - Copy' 
+HOME_DIR = HOME + r'\Codice_carla\final_0911' 
 
 LIDAR_1_DIRECTORY = DATA_HOME + r'\1_original\lidar_output_lidar1\lidar'
 LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'\3_lidar_grid_map\lidar1_grid'
@@ -47,13 +47,14 @@ Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = "20250126_112202_999725_004102"
-LIDAR_FILE_2 = "20250118_102636_727556_168423"
-LIDAR_FILE_3 = "20250118_102716_454293_169283"
+LIDAR_FILE_1 = "20250127_231531_722968_000738"
+LIDAR_FILE_2 = "20250127_224559_008455_001088"
+LIDAR_FILE_3 = "20250127_224808_840505_003269"
 
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2
 NUM_MIN_POINTS_VEHICLE = 10
+NUM_MIN_POINTS_BICYCLE = 5
 NUM_MIN_POINTS_PEDESTRIAN = 1
 HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 
