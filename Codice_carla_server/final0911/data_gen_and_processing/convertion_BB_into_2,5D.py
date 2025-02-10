@@ -118,7 +118,7 @@ def convert_BB_into_25D(BB_path, folder_path) :
             for ver in vertices:
                 if ( (ver[0] > X_MIN - REDUCING_RANGE) or (ver[0] < -X_MIN + REDUCING_RANGE) or (ver[1] > Y_MIN - REDUCING_RANGE) or (ver[1] < -Y_MIN + REDUCING_RANGE) ):
                     outside_count += 1
-                    if outside_count >= 3:
+                    if outside_count >= 1:
                         all_in_range = False
                         break
                 if ( (ver[0] != x_old) or (ver[1] != y_old) or (ver[2] != z_old) ): #Check if the vertices are not equal, because some bounding box can have all the vertex equal (probably the actor hasn't spawn)
@@ -185,6 +185,12 @@ def convert_BB_into_25D(BB_path, folder_path) :
                 #positions = [tuple(row) for row in positions_array.tolist()]
 
                 #all_positions.append(positions)
+        #print("file name",file)
+        #print("bounding_box_vertice",bounding_box_vertices)
+        #print("all_positions",all_positions)
+        #print("label",bounding_box_labels)
+        #print("ids",bounding_box_ids)
+        #print("-------------------")
 
         data = [
             {

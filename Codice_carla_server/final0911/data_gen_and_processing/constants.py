@@ -1,4 +1,4 @@
-HOME = r'/home/nimbix/data/scripts/python_scripts/V2X'   # <---- CHANGE THIS
+HOME = r'C:/Users/marco/Desktop/Tesi'   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'/data_map03_0911'
 
@@ -47,8 +47,8 @@ Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = "20250203_144457_669836_008346"
-LIDAR_FILE_2 = "20250127_224559_008455_001088"
+LIDAR_FILE_1 = "20250205_104429_325610_064186"
+LIDAR_FILE_2 = "20250204_092832_022140_040448"
 LIDAR_FILE_3 = "20250127_224808_840505_003269"
 
 # For Eliminate_BB_without_points

@@ -13,7 +13,7 @@ def generate_grid_map(ply_directory, folder_path):
     y_min = Y_MIN
     x_range = X_RANGE
     y_range = Y_RANGE
-
+    
     for file in ply_files:
         # Extract file
         ply_path = os.path.join(ply_directory, file)
@@ -38,7 +38,7 @@ def generate_grid_map(ply_directory, folder_path):
         for point in points:
             x, y, z = point
             if (x > -x_min and x < x_min and y > -y_min and y < y_min):
-                x_idx = int((x - x_min) / grid_resolution) # Because we don't add the +1 to the map dimensions (otherwise the NN can't take it) the values at 20m are put at 0m, but this is negligible.
+                x_idx = int((x - x_min) / grid_resolution)
                 y_idx = int((y - y_min) / grid_resolution)
                 grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 

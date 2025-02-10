@@ -7,16 +7,53 @@ import numpy as np
 import pandas as pd
 from constants import *
 
-def preprocessing_data(path_lidar, new_positions_lidar_output, lidar_number):
+def preprocessing_data(lidar_number):
     
-    files_in_lidar_output = sorted([f for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
-    files_in_lidar_output_removed = []
-    for file in files_in_lidar_output:
-        file = file[:-4]
-        files_in_lidar_output_removed.append(file)
-    new_file_names_lidar_output = compare_and_save_positions(files_in_lidar_output_removed, new_positions_lidar_output)
-    modify_positions(new_file_names_lidar_output, new_positions_lidar_output, lidar_number)
+    if lidar_number == 1:
+        path_lidar_1 = LIDAR_1_DIRECTORY
+        files_in_lidar_output_1 = sorted([f for f in os.listdir(path_lidar_1) if os.path.isfile(os.path.join(path_lidar_1, f))])
+        files_in_lidar_output_1_removed = []
+        for file in files_in_lidar_output_1:
+            file = file[:-11]
+            if(file[-1] == "_"):
+                file = file[:-1]
+            files_in_lidar_output_1_removed.append(file)
+        new_positions_lidar_output_1 = NEW_POSITION_LIDAR_1_DIRECTORY
+        new_file_names_lidar_output_1 = compare_and_save_positions(files_in_lidar_output_1_removed, new_positions_lidar_output_1)
+        modify_positions(new_file_names_lidar_output_1, new_positions_lidar_output_1, 1)
     
+    elif lidar_number == 2:
+        
+        path_lidar_2 = LIDAR_2_DIRECTORY
+        files_in_lidar_output_2 = sorted([f for f in os.listdir(path_lidar_2) if os.path.isfile(os.path.join(path_lidar_2, f))])
+        files_in_lidar_output_2_removed = []
+        for file in files_in_lidar_output_2:
+            file = file[:-11]
+            if(file[-1] == "_"):
+                file = file[:-1]
+            files_in_lidar_output_2_removed.append(file)
+        new_positions_lidar_output_2 = NEW_POSITION_LIDAR_2_DIRECTORY
+        new_file_names_lidar_output_2 = compare_and_save_positions(files_in_lidar_output_2_removed, new_positions_lidar_output_2)
+        modify_positions(new_file_names_lidar_output_2, new_positions_lidar_output_2, 2)
+
+    elif lidar_number == 3:
+
+        path_lidar_3 = LIDAR_3_DIRECTORY
+        files_in_lidar_output_3 = sorted([f for f in os.listdir(path_lidar_3) if os.path.isfile(os.path.join(path_lidar_3, f))])
+        files_in_lidar_output_3_removed = []
+        for file in files_in_lidar_output_3:
+            file = file[:-11]
+            if(file[-1] == "_"):
+                file = file[:-1]
+            files_in_lidar_output_3_removed.append(file)
+        new_positions_lidar_output_3 = NEW_POSITION_LIDAR_3_DIRECTORY
+        new_file_names_lidar_output_3 = compare_and_save_positions(files_in_lidar_output_3_removed, new_positions_lidar_output_3)
+        modify_positions(new_file_names_lidar_output_3, new_positions_lidar_output_3, 3)
+    
+    else:
+        print("Invalid lidar number.")
+        sys.exit(1)
+
 
 #compare two date and return the difference
 def diff(date1, date2):
@@ -32,7 +69,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
     positions_files = []
     last_position = 0
     for file_lidar in lidar_files :
-        print("lidar:",file_lidar)
+        #print("lidar:",file_lidar)
         before_diff = datetime.timedelta(days = 1000)
         before_diff = (abs(before_diff.total_seconds()))
 
@@ -49,7 +86,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
                 before_file = files_in_position_removed[i]
             else :
                 positions_files.append(before_file)
-                print("position:",before_file)
+                #print("position:",before_file)
                 last_position = i-1
                 break
 
@@ -118,7 +155,7 @@ if __name__ == "__main__":
 
     path_position = POSITIONS_DIRECTORY
     files_in_position = sorted([f for f in os.listdir(path_position) if os.path.isfile(os.path.join(path_position, f))])
-    print(files_in_position[0:20])
+    #print(files_in_position[0:20])
     files_in_position_removed = []
     for file in files_in_position:
         file = file[:-4]
@@ -127,21 +164,21 @@ if __name__ == "__main__":
     while True:
         user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
         if user_input == '1':
-            preprocessing_data(LIDAR_1_DIRECTORY, NEW_POSITION_LIDAR_1_DIRECTORY, 1)
+            preprocessing_data(1)
             break
 
         elif user_input == '2':
-            preprocessing_data(LIDAR_2_DIRECTORY, NEW_POSITION_LIDAR_2_DIRECTORY, 2)
+            preprocessing_data(2)
             break
 
         elif user_input == '3':
-            preprocessing_data(LIDAR_3_DIRECTORY, NEW_POSITION_LIDAR_3_DIRECTORY, 3)
+            preprocessing_data(3)
             break
 
         elif user_input == '4':
-            preprocessing_data(LIDAR_1_DIRECTORY, NEW_POSITION_LIDAR_1_DIRECTORY, 1)
-            preprocessing_data(LIDAR_2_DIRECTORY, NEW_POSITION_LIDAR_2_DIRECTORY, 2)
-            preprocessing_data(LIDAR_3_DIRECTORY, NEW_POSITION_LIDAR_3_DIRECTORY, 3)
+            preprocessing_data(1)
+            preprocessing_data(2)
+            preprocessing_data(3)
             break
         else:
             print("Invalid input. Please enter 1, 2, 3 or 4.")
