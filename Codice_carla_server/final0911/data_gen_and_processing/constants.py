@@ -2,7 +2,7 @@ HOME = r'C:/Users/marco/Desktop/Tesi'   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'/data_map03_0911'
 
-HOME_DIR = HOME + r'/Codice_carla_270125/final0911' 
+HOME_DIR = HOME + r'/Codice_carla/final0911' 
 
 LIDAR_1_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidar1/lidar'
 LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidar1_grid'
@@ -47,7 +47,7 @@ Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = "20250205_104429_325610_064186"
+LIDAR_FILE_1 = "20250210_151427_063762"
 LIDAR_FILE_2 = "20250204_092832_022140_040448"
 LIDAR_FILE_3 = "20250127_224808_840505_003269"
 

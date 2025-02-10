@@ -1,7 +1,9 @@
 import os
+import subprocess
 
-def start_preprocessing(script_name):
-    os.system(f'python {script_name} 4')
+def start_preprocessing(script_name, user_input):
+    process = subprocess.Popen(['python', script_name], stdin=subprocess.PIPE)
+    process.communicate(input=user_input.encode())  # Provide the required input
 
 if __name__ == "__main__":
     scripts = [
@@ -11,5 +13,10 @@ if __name__ == "__main__":
         "eliminate_BB_without_points.py"
     ]
 
+    current_dir = os.path.dirname(__file__)
+
     for script in scripts:
-        start_preprocessing(script)
+        new_dir = os.path.join(current_dir, script)
+        print(f"Starting preprocessing for {script}")
+        start_preprocessing(new_dir, '1\n')  # Provide '1' as input for all scripts
+        print("\n")

@@ -3,76 +3,56 @@ import numpy as np
 import os
 from scipy.stats import mode
 from constants import *
+import time
+from multiprocessing import Pool
 
-def generate_grid_map(ply_directory, folder_path):
-    # Load point cloud from .ply file
-    ply_files = sorted([f for f in os.listdir(ply_directory) if f.endswith('.ply')])
+def process_file(file, ply_directory, folder_path):
+    # Extract file
+    ply_path = os.path.join(ply_directory, file)
+    pcd = o3d.io.read_point_cloud(ply_path)
+    points = np.asarray(pcd.points)
 
-    grid_resolution = GRID_RESOLUTION  # Define the resolution of the grid
+    grid_resolution = GRID_RESOLUTION
     x_min = X_MIN
     y_min = Y_MIN
     x_range = X_RANGE
     y_range = Y_RANGE
-    
-    for file in ply_files:
-        # Extract file
-        ply_path = os.path.join(ply_directory, file)
-        #print(f"Loading {file}...")
-        pcd = o3d.io.read_point_cloud(ply_path)
-        # Extract points as numpy array
-        points = np.asarray(pcd.points)
 
-        # Define grid parameters
-        # x_min, x_max = np.min(points[:, 0]), np.max(points[:, 0])
-        # y_min, y_max = np.min(points[:, 1]), np.max(points[:, 1])
+    grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
 
-        # Calculate grid dimensions
-        # x_range = int((x_max - x_min) / grid_resolution) + 1
-        # y_range = int((y_max - y_min) / grid_resolution) + 1
+    valid_points = points[
+        (points[:, 0] > -x_min) & (points[:, 0] < x_min) &
+        (points[:, 1] > -y_min) & (points[:, 1] < y_min)
+    ]
 
-        # Use this fixed value to have the same dimension for all the data
+    x_indices = ((valid_points[:, 0] - x_min) / grid_resolution).astype(int)
+    y_indices = ((valid_points[:, 1] - y_min) / grid_resolution).astype(int)
+    z_values = valid_points[:, 2] / grid_resolution
 
-        # Initialize the grid map
-        grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
+    np.maximum.at(grid_map, (y_indices, x_indices), z_values)
 
-        for point in points:
-            x, y, z = point
-            if (x > -x_min and x < x_min and y > -y_min and y < y_min):
-                x_idx = int((x - x_min) / grid_resolution)
-                y_idx = int((y - y_min) / grid_resolution)
-                grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
+    # Set the first row and first column to FLOOR_HEIGHT (because the grid is 400x400 and not 401x401)
+    grid_map[0, :] = FLOOR_HEIGHT
+    grid_map[:, 0] = FLOOR_HEIGHT
 
-        #mode_height = mode(points[:, 2])[0][0]
-        #grid_map[grid_map == -np.inf] = (mode_height /grid_resolution)
+    non_zero_indices = np.nonzero(grid_map != FLOOR_HEIGHT)
+    values = grid_map[non_zero_indices]
+    positions = np.column_stack((non_zero_indices[1], non_zero_indices[0], values))
 
-        # Find the indices where grid_map values are different from the minimum value
-        non_zero_indices = np.nonzero(grid_map != FLOOR_HEIGHT)
+    filename = file[:-4] + ".csv"
+    file_path = os.path.join(folder_path, filename)
+    np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
 
-        # Extract the values at these indices
-        values = grid_map[non_zero_indices]
+def generate_grid_map(ply_directory, folder_path):
+    ply_files = sorted([f for f in os.listdir(ply_directory) if f.endswith('.ply')])
 
-        # Combine the indices and values into a structured array
-        positions = np.column_stack((non_zero_indices[1], non_zero_indices[0], values))
-        
-        # Define the desired folder and filename
-        filename = file[:-4]
-        filename = filename + ".csv"
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-        # Ensure the folder exists
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        # Full path to save the CSV file
-        file_path = os.path.join(folder_path, filename)
-
-        # Save the grid map to the specified folder
-        np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
-
-        #print(f"Grid map saved to {file_path}")
-
+    with Pool() as pool:
+        pool.starmap(process_file, [(file, ply_directory, folder_path) for file in ply_files])
 
 if __name__ == "__main__":
-
     path_lidar_1 = LIDAR_1_DIRECTORY
     new_path_1_grid = LIDAR_1_GRID_DIRECTORY
 
@@ -95,7 +75,9 @@ if __name__ == "__main__":
             break
         elif user_input == '4':
             generate_grid_map(path_lidar_1, new_path_1_grid)
+            print("Lidar 1 done")
             generate_grid_map(path_lidar_2, new_path_2_grid)
+            print("Lidar 2 done")
             generate_grid_map(path_lidar_3, new_path_3_grid)
             break
         else:

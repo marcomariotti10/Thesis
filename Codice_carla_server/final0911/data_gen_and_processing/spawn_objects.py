@@ -48,7 +48,7 @@ def spawn_static_sensors(sensors_config, sensor_list, static_list, world : carla
                 elif(s_type == "sensor.lidar.ray_cast"):
                     #point_list = o3d.geometry.PointCloud()
                     #sensor_actor.listen(lambda data: lidar_callback(data, point_list))
-                    sensor_actor.listen(lambda point_cloud: point_cloud.save_to_disk(LIDAR_DIRECTORY + f'/lidar_output_{complete_name}' + '/%s_%.6d.ply' % (datetime.now().strftime('%Y%m%d_%H%M%S_%f'), point_cloud.frame)))
+                    sensor_actor.listen(lambda point_cloud: point_cloud.save_to_disk(LIDAR_DIRECTORY + f'/lidar_output_{complete_name}' + '/%s.ply' % (datetime.now().strftime('%Y%m%d_%H%M%S_%f'))))
                     pass
             sensor_list.append(sensor_actor)
             static_list.append(sensors_home_actor)
