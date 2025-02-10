@@ -8,6 +8,12 @@ def generate_grid_map(ply_directory, folder_path):
     # Load point cloud from .ply file
     ply_files = sorted([f for f in os.listdir(ply_directory) if f.endswith('.ply')])
 
+    grid_resolution = GRID_RESOLUTION  # Define the resolution of the grid
+    x_min = X_MIN
+    y_min = Y_MIN
+    x_range = X_RANGE
+    y_range = Y_RANGE
+
     for file in ply_files:
         # Extract file
         ply_path = os.path.join(ply_directory, file)
@@ -25,11 +31,6 @@ def generate_grid_map(ply_directory, folder_path):
         # y_range = int((y_max - y_min) / grid_resolution) + 1
 
         # Use this fixed value to have the same dimension for all the data
-        grid_resolution = GRID_RESOLUTION  # Define the resolution of the grid
-        x_min = X_MIN
-        y_min = Y_MIN
-        x_range = X_RANGE
-        y_range = Y_RANGE
 
         # Initialize the grid map
         grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
@@ -37,7 +38,7 @@ def generate_grid_map(ply_directory, folder_path):
         for point in points:
             x, y, z = point
             if (x > -x_min and x < x_min and y > -y_min and y < y_min):
-                x_idx = int((x - x_min) / grid_resolution)
+                x_idx = int((x - x_min) / grid_resolution) # Because we don't add the +1 to the map dimensions (otherwise the NN can't take it) the values at 20m are put at 0m, but this is negligible.
                 y_idx = int((y - y_min) / grid_resolution)
                 grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))  # Take the maximum height divided for the grid_resolution to maintain the proportions
 
