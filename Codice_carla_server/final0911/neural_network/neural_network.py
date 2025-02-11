@@ -9,19 +9,27 @@ import sys
 from sklearn.model_selection import train_test_split
 import importlib
 from torchsummary import summary
+import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
 import gc
 from multiprocessing import Pool, set_start_method
 
-# Import constants and catch any import errors
-from link_to_constants import *
-link_constants()
-try:
-    from constants import * # type: ignore
-    print("Successfully imported constants.")
-except ImportError as e:
-    print(f"Error importing constants: {e}")
+def import_constants():
+    # Dynamically construct the path to the data_gen_and_processing folder
+    current_dir = os.path.dirname(__file__)
+    parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+    data_gen_and_processing_dir = os.path.join(parent_dir, 'data_gen_and_processing')
 
+    # Add the path to the constants module
+    sys.path.insert(0, data_gen_and_processing_dir)
+
+    # Print paths for debugging
+    print(f"Current directory: {current_dir}")
+    print(f"Parent directory: {parent_dir}")
+    print(f"Data gen and processing directory: {data_gen_and_processing_dir}")
+    
+    # Add the path to the constants module
+    sys.path.append(data_gen_and_processing_dir)
 
 def load_points_grid_map(csv_file):
     """Load bounding box vertices from a CSV file."""
@@ -36,31 +44,6 @@ def load_points_grid_map(csv_file):
             points.append(coordinates)
     np_points = np.array(points)
     return np_points
-
-def process_file(file, grid_map_path):
-    try:
-        complete_path = os.path.join(grid_map_path, file)
-        print(f"Loading {file}...")
-        points = load_points_grid_map(complete_path)
-
-        # Recreate the grid map from positions array
-        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-
-        # Fill the grid map with values from positions array
-        for pos in points:
-            col, row, height = pos
-            grid_map_recreate[int(row), int(col)] = height
-
-        return grid_map_recreate
-    except Exception as e:
-        print(f"Error processing file {file}: {e}")
-        return None
-
-def generate_grid_map(grid_map_path):
-    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
-    with Pool() as pool:
-        list_grid_maps = pool.starmap(process_file, [(file, grid_map_path) for file in grid_map_files])
-    return [gm for gm in list_grid_maps if gm is not None]
 
 def load_points_grid_map_BB (csv_file):
     """Load bounding box vertices from a CSV file."""
@@ -77,34 +60,51 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
-def process_file_BB(file, grid_map_path):
+def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
     try:
+        # Import constants inside the function
+        from constants import Y_RANGE, X_RANGE, FLOOR_HEIGHT
+
         complete_path = os.path.join(grid_map_path, file)
-        print(f"Loading {file}...")
-        points = load_points_grid_map_BB(complete_path)
+        complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
+        print(f"Loading {file} and {file_BB}...")
 
-        num_BB = points.shape[0]
+        points = load_points_grid_map(complete_path)
+        points_BB = load_points_grid_map_BB(complete_path_BB)
 
-        # Recreate the grid map from positions array
-        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+        num_BB = points_BB.shape[0]
 
-        # Fill the grid map with values from positions array
-        for i in range(len(points)):
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
+
+        for pos in points:
+            col, row, height = pos
+            grid_map_recreate[int(row), int(col)] = int(height)
+
+        for i in range(len(points_BB)):
             for j in range(4):
-                col, row, height = points[i][j]
-                grid_map_recreate[int(row), int(col)] = height
+                col, row, height = points_BB[i][j]
+                grid_map_recreate_BB[int(row), int(col)] = int(height)
 
-        return grid_map_recreate, num_BB
+        return grid_map_recreate, grid_map_recreate_BB, num_BB
     except Exception as e:
-        print(f"Error processing file {file}: {e}")
-        return None, None
+        print(f"Error processing files {file} and {file_BB}: {e}")
+        return None, None, None
 
-def generate_grid_map_BB (grid_map_path):
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
     grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
+    
     with Pool() as pool:
-        results = pool.starmap(process_file_BB, [(file, grid_map_path) for file in grid_map_files])
-    list_grid_maps, list_num_BB = zip(*[(gm, nb) for gm, nb in results if gm is not None and nb is not None])
-    return list_grid_maps, list_num_BB
+        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
+    
+    for gm, gmbb, nb in results:
+        if gm is not None and gmbb is not None and nb is not None:
+            complete_grid_maps.append(gm)
+            complete_grid_maps_BB.append(gmbb)
+            complete_num_BB.append(nb)
+        else:
+            print("Error processing file.")
 
 def split_data(lidar_data, BB_data, num_BB, size):
     # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
@@ -151,52 +151,48 @@ class Autoencoder(nn.Module):
         x = self.decoder(x)
         return x
 
-def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
-    try:
-        complete_path = os.path.join(grid_map_path, file)
-        complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        print(f"Loading {file} and {file_BB}...")
+class EarlyStopping:
+    def __init__(self, patience=5, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.best_loss = None
+        self.counter = 0
+        self.early_stop = False
 
-        points = load_points_grid_map(complete_path)
-        points_BB = load_points_grid_map_BB(complete_path_BB)
-
-        num_BB = points_BB.shape[0]
-
-        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-
-        for pos in points:
-            col, row, height = pos
-            grid_map_recreate[int(row), int(col)] = height
-
-        for i in range(len(points_BB)):
-            for j in range(4):
-                col, row, height = points_BB[i][j]
-                grid_map_recreate_BB[int(row), int(col)] = height
-
-        return grid_map_recreate, grid_map_recreate_BB, num_BB
-    except Exception as e:
-        print(f"Error processing files {file} and {file_BB}: {e}")
-        return None, None, None
-
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
-    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
-    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
-    
-    with Pool() as pool:
-        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
-    
-    for gm, gmbb, nb in results:
-        if gm is not None and gmbb is not None and nb is not None:
-            complete_grid_maps.append(gm)
-            complete_grid_maps_BB.append(gmbb)
-            complete_num_BB.append(nb)
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
         else:
-            print("Error processing file.")
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight, nonlinearity='relu')
+        if m.bias is not None:
+            init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        init.kaiming_normal_(m.weight, nonlinearity='relu')
+        if m.bias is not None:
+            init.constant_(m.bias, 0)
 
 if __name__ == "__main__":
-    set_start_method("spawn")
+    
     gc.collect()
+
+    import_constants()
+    try:
+        from constants import * # type: ignore
+        print("Successfully imported constants.")
+    except ImportError as e:
+        print(f"Error importing constants: {e}")
+    # Ensure the start method is set as early as possible
+
+    set_start_method("spawn", force=True)
 
     complete_grid_maps = []
     complete_grid_maps_BB = []
@@ -292,13 +288,14 @@ if __name__ == "__main__":
 
     print("Len dataset (train, val, test):",len(train_dataset), len(val_dataset), len(test_dataset))
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     del train_dataset, val_dataset, test_dataset
 
     model = Autoencoder()
+    model.apply(weights_init)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.1) # model.parameters() passes the parameters of the model to the optimizer so that it can update them during training.
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
@@ -324,6 +321,9 @@ if __name__ == "__main__":
     
     # Clear GPU cache
     torch.cuda.empty_cache()
+
+    # Initialize early stopping
+    early_stopping = EarlyStopping(patience=3, min_delta=0.001)
 
     num_epochs = 20
     # Training loop
@@ -358,6 +358,12 @@ if __name__ == "__main__":
         print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
         # Clear GPU cache
         torch.cuda.empty_cache()
+
+        # Check early stopping
+        early_stopping(val_loss)
+        if early_stopping.early_stop:
+            print("Early stopping triggered")
+            break
 
     # Evaluate on test set
     model.eval()
