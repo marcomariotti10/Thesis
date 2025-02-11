@@ -6,7 +6,7 @@ from constants import *
 import time
 from multiprocessing import Pool
 
-def process_file(file, ply_directory, folder_path):
+def process_file(i,file, ply_directory, folder_path):
     # Extract file
     ply_path = os.path.join(ply_directory, file)
     pcd = o3d.io.read_point_cloud(ply_path)
@@ -39,7 +39,7 @@ def process_file(file, ply_directory, folder_path):
     values = grid_map[non_zero_indices]
     positions = np.column_stack((non_zero_indices[1], non_zero_indices[0], values))
 
-    filename = file[:-4] + ".csv"
+    filename = f"{file[:-4]}_{i}.csv"
     file_path = os.path.join(folder_path, filename)
     np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
 
@@ -50,7 +50,7 @@ def generate_grid_map(ply_directory, folder_path):
         os.makedirs(folder_path)
 
     with Pool() as pool:
-        pool.starmap(process_file, [(file, ply_directory, folder_path) for file in ply_files])
+        pool.starmap(process_file, [(i,file, ply_directory, folder_path) for i,file in enumerate(ply_files)])
 
 if __name__ == "__main__":
     path_lidar_1 = LIDAR_1_DIRECTORY

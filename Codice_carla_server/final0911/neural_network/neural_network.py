@@ -37,6 +37,30 @@ def load_points_grid_map(csv_file):
     np_points = np.array(points)
     return np_points
 
+def process_file(file, grid_map_path):
+    try:
+        complete_path = os.path.join(grid_map_path, file)
+        print(f"Loading {file}...")
+        points = load_points_grid_map(complete_path)
+
+        # Recreate the grid map from positions array
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+        # Fill the grid map with values from positions array
+        for pos in points:
+            col, row, height = pos
+            grid_map_recreate[int(row), int(col)] = height
+
+        return grid_map_recreate
+    except Exception as e:
+        print(f"Error processing file {file}: {e}")
+        return None
+
+def generate_grid_map(grid_map_path):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    with Pool() as pool:
+        list_grid_maps = pool.starmap(process_file, [(file, grid_map_path) for file in grid_map_files])
+    return [gm for gm in list_grid_maps if gm is not None]
 
 def load_points_grid_map_BB (csv_file):
     """Load bounding box vertices from a CSV file."""
@@ -53,6 +77,34 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
+def process_file_BB(file, grid_map_path):
+    try:
+        complete_path = os.path.join(grid_map_path, file)
+        print(f"Loading {file}...")
+        points = load_points_grid_map_BB(complete_path)
+
+        num_BB = points.shape[0]
+
+        # Recreate the grid map from positions array
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+        # Fill the grid map with values from positions array
+        for i in range(len(points)):
+            for j in range(4):
+                col, row, height = points[i][j]
+                grid_map_recreate[int(row), int(col)] = height
+
+        return grid_map_recreate, num_BB
+    except Exception as e:
+        print(f"Error processing file {file}: {e}")
+        return None, None
+
+def generate_grid_map_BB (grid_map_path):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    with Pool() as pool:
+        results = pool.starmap(process_file_BB, [(file, grid_map_path) for file in grid_map_files])
+    list_grid_maps, list_num_BB = zip(*[(gm, nb) for gm, nb in results if gm is not None and nb is not None])
+    return list_grid_maps, list_num_BB
 
 def split_data(lidar_data, BB_data, num_BB, size):
     # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
@@ -127,15 +179,20 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
         print(f"Error processing files {file} and {file_BB}: {e}")
         return None, None, None
 
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path):
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
     grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
     grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
     
     with Pool() as pool:
         results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
     
-    list_grid_maps, list_grid_maps_BB, list_num_BB = zip(*[(gm, gmbb, nb) for gm, gmbb, nb in results if gm is not None and gmbb is not None and nb is not None])
-    return list_grid_maps, list_grid_maps_BB, list_num_BB
+    for gm, gmbb, nb in results:
+        if gm is not None and gmbb is not None and nb is not None:
+            complete_grid_maps.append(gm)
+            complete_grid_maps_BB.append(gmbb)
+            complete_num_BB.append(nb)
+        else:
+            print("Error processing file.")
 
 if __name__ == "__main__":
     set_start_method("spawn")
@@ -146,38 +203,27 @@ if __name__ == "__main__":
     complete_num_BB = []
 
     # Load sensor1
-    grid_maps, grid_maps_BB, num_BB = generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY) # type: ignore
-    complete_grid_maps.append(grid_maps)
-    complete_grid_maps_BB.append(grid_maps_BB)
-    complete_num_BB.append(num_BB)
+    generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
     # Load sensor2
-    grid_maps, grid_maps_BB, num_BB = generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY) # type: ignore
-    complete_grid_maps.append(grid_maps)
-    complete_grid_maps_BB.append(grid_maps_BB)
-    complete_num_BB.append(num_BB)
+    generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
     # Load sensor3
-    grid_maps, grid_maps_BB, num_BB = generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY) # type: ignore
-    complete_grid_maps.append(grid_maps)
-    complete_grid_maps_BB.append(grid_maps_BB)
-    complete_num_BB.append(num_BB)
+    generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
-    del grid_maps, grid_maps_BB, num_BB
-
-    print(f"Number of grid maps for each sensor: {len(complete_grid_maps[0])}, {len(complete_grid_maps[1])}, {len(complete_grid_maps[2])}")
-    print(f"Number of grid maps BB for each sensor: {len(complete_grid_maps_BB[0])}, {len(complete_grid_maps_BB[1])}, {len(complete_grid_maps_BB[2])}")
-    print(f"Number of bounding boxes for each sensor: {len(complete_num_BB[0])}, {len(complete_num_BB[1])}, {len(complete_num_BB[2])}")
+    #print(f"Number of grid maps for each sensor: {len(complete_grid_maps[0])}, {len(complete_grid_maps[1])}, {len(complete_grid_maps[2])}")
+    #print(f"Number of grid maps BB for each sensor: {len(complete_grid_maps_BB[0])}, {len(complete_grid_maps_BB[1])}, {len(complete_grid_maps_BB[2])}")
+    #print(f"Number of bounding boxes for each sensor: {len(complete_num_BB[0])}, {len(complete_num_BB[1])}, {len(complete_num_BB[2])}")
 
     # Concatenate the lists in complete_grid_maps along the first dimension
-    complete_grid_maps = np.concatenate(complete_grid_maps, axis=0)
+    complete_grid_maps = np.array(complete_grid_maps)
     print(f"complete grid map shape : {complete_grid_maps.shape}")
 
     # Concatenate the lists in complete_grid_maps_BB along the first dimension
-    complete_grid_maps_BB = np.concatenate(complete_grid_maps_BB, axis=0)
+    complete_grid_maps_BB = np.array(complete_grid_maps_BB)
     print(f"complete grid map BB shape : {complete_grid_maps_BB.shape}")
 
-    complete_num_BB = np.concatenate(complete_num_BB, axis=0)
+    complete_num_BB = np.array(complete_num_BB)
     print(f"complete number of bounding boxes shape : {complete_num_BB.shape}")
 
     complete_num_BB = np.expand_dims(complete_num_BB, axis=1)

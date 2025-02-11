@@ -126,6 +126,9 @@ def visualize_ply_with_bounding_boxes(ply_directory, csv_directory, specific_ply
     if len(ply_files) != len(csv_files):
         print(f"Warning: The number of .ply files ({len(ply_files)}) and .csv files ({len(csv_files)}) do not match!")
         return
+    while specific_ply[-1] != "_":
+        specific_ply = specific_ply[:-1]
+    specific_ply = specific_ply[:-1]
     specific_ply_extension = specific_ply + ".ply"
     if specific_ply_extension in ply_files:
         index = ply_files.index(specific_ply_extension)
