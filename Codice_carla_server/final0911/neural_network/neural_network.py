@@ -13,10 +13,15 @@ import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
 import gc
 from multiprocessing import Pool, set_start_method
+from matplotlib.path import Path
+import open3d as o3d
+import matplotlib.pyplot as plt
+import cv2
+from sklearn.preprocessing import MinMaxScaler
 
 def import_constants():
     # Dynamically construct the path to the data_gen_and_processing folder
-    current_dir = os.path.dirname(__file__)
+    current_dir = os.getcwd()
     parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
     data_gen_and_processing_dir = os.path.join(parent_dir, 'data_gen_and_processing')
 
@@ -60,8 +65,11 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
-def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
-    try:
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
+    
+    for file, file_BB in zip(grid_map_files, grid_map_BB_files):
         # Import constants inside the function
         from constants import Y_RANGE, X_RANGE, FLOOR_HEIGHT
 
@@ -69,10 +77,13 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
         print(f"Loading {file} and {file_BB}...")
 
-        points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
 
         num_BB = points_BB.shape[0]
+        if num_BB == 0:
+            continue
+        
+        points = load_points_grid_map(complete_path)
 
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
@@ -82,29 +93,62 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
             grid_map_recreate[int(row), int(col)] = int(height)
 
         for i in range(len(points_BB)):
-            for j in range(4):
-                col, row, height = points_BB[i][j]
-                grid_map_recreate_BB[int(row), int(col)] = int(height)
+            vertices = np.array(points_BB[i])
+            height_BB = int(vertices[0, 2])  # Assuming all vertices have the same height
+            fill_polygon(grid_map_recreate_BB, vertices, height_BB)
 
-        return grid_map_recreate, grid_map_recreate_BB, num_BB
-    except Exception as e:
-        print(f"Error processing files {file} and {file_BB}: {e}")
-        return None, None, None
+        complete_grid_maps.append(grid_map_recreate)
+        complete_grid_maps_BB.append(grid_map_recreate_BB)
+        complete_num_BB.append(num_BB)
 
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
-    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
-    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
+def fill_polygon(grid_map, vertices, height):
+    # Create an empty mask with the same shape as the grid map
+    mask = np.zeros_like(grid_map, dtype=np.uint8)
     
-    with Pool() as pool:
-        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
+    # Convert vertices to integer coordinates
+    vertices_int = np.array(vertices[:, :2], dtype=np.int32)
     
-    for gm, gmbb, nb in results:
-        if gm is not None and gmbb is not None and nb is not None:
-            complete_grid_maps.append(gm)
-            complete_grid_maps_BB.append(gmbb)
-            complete_num_BB.append(nb)
-        else:
-            print("Error processing file.")
+    # Define different orders to try
+    orders = [
+        [0, 1, 3, 2],
+        [0, 1, 2, 3]
+    ]
+    
+    # Try filling the polygon with different orders of vertices
+    for order in orders:
+        ordered_vertices = vertices_int[order]
+        cv2.fillPoly(mask, [ordered_vertices], 1)
+    
+    # Set the height for the filled area in the grid map
+    grid_map[mask == 1] = height
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight, nonlinearity='relu')
+        if m.bias is not None:
+            init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        init.kaiming_normal_(m.weight, nonlinearity='relu')
+        if m.bias is not None:
+            init.constant_(m.bias, 0)
+
+def visualize_prediction(prediction, real):
+    """
+    Visualize the grid map and the prediction.
+    
+    Parameters:
+    - grid_map: numpy array of shape (400, 400)
+    - prediction: numpy array of shape (400, 400)
+    """
+    fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+    
+    ax[0].imshow(prediction, cmap='gray')
+    ax[0].set_title('Prediction Map')
+    
+    ax[1].imshow(real, cmap='gray')
+    ax[1].set_title('Real Map')
+    
+    plt.show()
 
 def split_data(lidar_data, BB_data, num_BB, size):
     # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
@@ -170,15 +214,22 @@ class EarlyStopping:
             if self.counter >= self.patience:
                 self.early_stop = True
 
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        init.kaiming_normal_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            init.constant_(m.bias, 0)
-    elif isinstance(m, nn.Linear):
-        init.kaiming_normal_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            init.constant_(m.bias, 0)
+class WeightedCustomLoss(nn.Module):
+    def __init__(self, weight=100):
+        super(WeightedCustomLoss, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.weight = weight
+
+    def forward(self, predictions, targets):
+        from constants import FLOOR_HEIGHT
+        mask = (targets != FLOOR_HEIGHT).float()
+        masked_predictions = predictions * mask
+        masked_targets = targets * mask
+        loss = self.mse_loss(masked_predictions, masked_targets)
+        
+        # Apply weighting to the loss
+        weighted_loss = loss * self.weight + self.mse_loss(predictions * (1 - mask), targets * (1 - mask))
+        return weighted_loss
 
 if __name__ == "__main__":
     
@@ -224,6 +275,17 @@ if __name__ == "__main__":
 
     complete_num_BB = np.expand_dims(complete_num_BB, axis=1)
     print(f"expanded number of bounding boxes shape : {complete_num_BB.shape}")
+
+    # ELiminate all the data points with 0 bounding boxes
+    total_num_greater_than_1 = 0
+    total_num_equal_to_0 = 0
+    for i in range(complete_num_BB.shape[0]):
+        if (complete_num_BB[i] >= 1):
+            total_num_greater_than_1 += 1
+        else:
+            total_num_equal_to_0 += 1
+
+    print(total_num_greater_than_1, total_num_equal_to_0)
 
     # Split the data
     X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = split_data(complete_grid_maps, complete_grid_maps_BB, complete_num_BB, TEST_SIZE) # type: ignore
@@ -296,8 +358,8 @@ if __name__ == "__main__":
 
     model = Autoencoder()
     model.apply(weights_init)
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.1) # model.parameters() passes the parameters of the model to the optimizer so that it can update them during training.
+    criterion = WeightedCustomLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01) # model.parameters() passes the parameters of the model to the optimizer so that it can update them during training.
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
 
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -323,9 +385,9 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
 
     # Initialize early stopping
-    early_stopping = EarlyStopping(patience=3, min_delta=0.001)
+    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
 
-    num_epochs = 20
+    num_epochs = 50
     # Training loop
     for epoch in range(num_epochs):
         model.train()
