@@ -69,14 +69,12 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
     grid_map_files = sorted([f for f in os.listdir(grid_map_directory) if f.endswith('.csv')])
     BB_files = sorted([f for f in os.listdir(BB_directory) if f.endswith('.csv')])
 
-    specific_csv_extended = specific_csv + ".csv"
-    if specific_csv_extended in grid_map_files:
-        index = grid_map_files.index(specific_csv_extended)
-        print(f"The index of {specific_csv_extended} is: {index}")
-        grid_map_files = grid_map_files[index:]
-        BB_files = BB_files[index:]
+    if (specific_csv >= 0 and specific_csv < len(grid_map_files)):
+        print(f"The index is: {specific_csv}")
+        grid_map_files = grid_map_files[specific_csv:]
+        BB_files = BB_files[specific_csv:]
     else:
-        print(f"ERROR : {specific_csv} is not in the list")
+        print(f"ERROR : {specific_csv} is not correct")
 
     for i,file in enumerate(grid_map_files):
         grid_map_path = os.path.join(grid_map_directory, file)

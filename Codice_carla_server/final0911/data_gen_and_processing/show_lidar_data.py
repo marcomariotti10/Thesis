@@ -126,17 +126,12 @@ def visualize_ply_with_bounding_boxes(ply_directory, csv_directory, specific_ply
     if len(ply_files) != len(csv_files):
         print(f"Warning: The number of .ply files ({len(ply_files)}) and .csv files ({len(csv_files)}) do not match!")
         return
-    while specific_ply[-1] != "_":
-        specific_ply = specific_ply[:-1]
-    specific_ply = specific_ply[:-1]
-    specific_ply_extension = specific_ply + ".ply"
-    if specific_ply_extension in ply_files:
-        index = ply_files.index(specific_ply_extension)
-        print(f"The index of {specific_ply_extension} is: {index}")
-        ply_files = ply_files[index:]
-        csv_files = csv_files[index:]
+    if (specific_ply >= 0 and specific_ply < len(ply_files)):
+        print(f"The index is: {specific_ply}")
+        ply_files = ply_files[specific_ply:]
+        csv_files = csv_files[specific_ply:]
     else:
-        print(f"ERROR : {specific_ply} is not in the list")
+        print(f"ERROR : {specific_ply} is not correct")
     
     for i, ply_file in enumerate(ply_files) : 
         # Create Open3D Visualizer

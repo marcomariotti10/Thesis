@@ -57,7 +57,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
     #ERROR PRINT
     try:
         if len(lidar_files) == len(positions_files):
-            print("The two lists have the same length")
+            pass
     except ValueError:
         print('THE TWO LISTS HAVE DIFFERENT LENGTHS')
         sys.exit(1)

@@ -96,7 +96,7 @@ def process_csv_file(args):
         for ver in vertices:
             if ((ver[0] > X_MIN - REDUCING_RANGE) or (ver[0] < -X_MIN + REDUCING_RANGE) or (ver[1] > Y_MIN - REDUCING_RANGE) or (ver[1] < -Y_MIN + REDUCING_RANGE)):
                 outside_count += 1
-                if outside_count >= 1:
+                if outside_count >= 3:
                     all_in_range = False
                     break
             if ((ver[0] != x_old) or (ver[1] != y_old) or (ver[2] != z_old)):
@@ -106,6 +106,11 @@ def process_csv_file(args):
             else:
                 all_same = True
                 break
+        
+        # This condition to eliminate all the bounding box partially outside the grid that are also rotated (too complex to manage)
+        if outside_count == 1 or outside_count == 2:
+            if (vertices[0][0] >= vertices[1][0] + RANGE_FOR_ROTATED_VEHICLES) or (vertices[0][0] <= vertices[1][0] - RANGE_FOR_ROTATED_VEHICLES):
+                all_in_range = False
 
         if all_in_range and not all_same:
             bounding_box_vertices.append(vertices)
