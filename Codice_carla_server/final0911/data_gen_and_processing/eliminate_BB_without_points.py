@@ -89,7 +89,7 @@ def process_file(args):
     for i, bb in enumerate(bounding_box_vertices):
         smaller_grid = extract_smaller_grid(grid_map_recreate, bb, labels[i])
         non_zero_indices = np.nonzero(smaller_grid > MIN_HEIGHT + HEIGHT_OFFSET)
-        if (labels[i] == "vehicle"):
+        if (labels[i] == "car"):
             if len(non_zero_indices[0]) < NUM_MIN_POINTS_VEHICLE:
                 bounding_boxes_without_points.append(i)
         elif (labels[i] == "bicycle"): 
