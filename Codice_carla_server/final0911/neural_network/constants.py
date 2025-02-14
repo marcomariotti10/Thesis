@@ -28,6 +28,15 @@ NEW_POSITION_LIDAR_3_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_li
 NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidar3_grid'
 POSITION_LIDAR_3_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidar3_grid_no_BB'
 
+LIDAR_1_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_1'
+POSITION_1_TEST = DATA_HOME + r'/6_test/position_test/position_1'
+
+LIDAR_2_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_2'
+POSITION_2_TEST = DATA_HOME + r'/6_test/position_test/position_2'
+
+LIDAR_3_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_3'
+POSITION_3_TEST = DATA_HOME + r'/6_test/position_test/position_3'
+
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
@@ -45,9 +54,10 @@ Y_RANGE = 400   #Used also in show_grid_map
 X_MIN = 20      #Used also in show_grid_map
 Y_MIN = 20      #Used also in show_grid_map
 FLOOR_HEIGHT = -100
+RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = "20250210_151427_063762"
+LIDAR_FILE_1 = 450
 LIDAR_FILE_2 = "20250204_092832_022140_040448"
 LIDAR_FILE_3 = "20250210_172112_170190_38"
 

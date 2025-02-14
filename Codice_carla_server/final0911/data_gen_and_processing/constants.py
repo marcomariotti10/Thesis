@@ -62,3 +62,4 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
+NUMBER_OF_REPETITIONS = 10
