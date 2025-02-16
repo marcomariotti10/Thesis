@@ -75,10 +75,17 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
 
-        num_BB = points_BB.shape[0]
-        # Consider only the grid_maps with bounding boxes
-        #if num_BB == 0:
-            #return None, None, None
+        num_BB = [0,0,0]
+        with open(complete_path_BB, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            for row in reader:
+                if row[1] == 'pedestrian':
+                    num_BB[0] += 1
+                elif row[1] == 'bicycle':
+                    num_BB[1] += 1
+                elif row[1] == 'car':
+                    num_BB[2] += 1
 
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
@@ -162,25 +169,39 @@ def split_data(lidar_data, BB_data, num_BB, size):
     X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = train_test_split(
         lidar_data, # Samples
         BB_data, # Labels
-        num_BB, # Number of BB
+        num_BB, # Number of number_of_BB
         test_size = size,
         random_state=SEED, # type: ignore
         stratify=num_BB
     )
     return X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test
 
-def take_split_files(total_files, file_for_chunck, i):
-    start_index = i * file_for_chunck
-    end_index = min((i + 1) * file_for_chunck, len(total_files))
-    files = total_files[start_index:end_index]
-    
-    return files
-
 def visualize_proportion(data):
-    sum = 0
+    sum_ped = 0
+    sum_bic = 0
+    sum_car = 0
     for i in range(len(data)):
-        sum += data[i]
-    return sum
+        sum_ped += data[i][0]
+        sum_bic += data[i][1]
+        sum_car += data[i][2]
+    return sum_ped, sum_bic, sum_car
+
+def number_of_BB(files, path):
+    num_BB = np.zeros((len(files), 3), dtype=int)
+    for i in range (len(files)):
+        file = files[i]
+        complete_path = os.path.join(path, file)
+        with open(complete_path, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            for row in reader:
+                if row[1] == 'pedestrian':
+                    num_BB[i][0] += 1
+                elif row[1] == 'bicycle':
+                    num_BB[i][1] += 1
+                elif row[1] == 'car':
+                    num_BB[i][2] += 1
+    return num_BB
 
 # Define the autoencoder model
 class Autoencoder(nn.Module):

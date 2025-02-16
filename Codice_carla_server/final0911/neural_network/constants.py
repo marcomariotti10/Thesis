@@ -40,6 +40,9 @@ POSITION_3_TEST = DATA_HOME + r'/6_test/position_test/position_3'
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
+SCALER_DIR = HOME_DIR + r'/scalers'
+
+MODEL_DIR = HOME_DIR + r'/models'
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0
@@ -58,8 +61,8 @@ RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehic
 
 # For Show_lidar_data and Show_grid_map
 LIDAR_FILE_1 = 450
-LIDAR_FILE_2 = "20250204_092832_022140_040448"
-LIDAR_FILE_3 = "20250210_172112_170190_38"
+LIDAR_FILE_2 = 100
+LIDAR_FILE_3 = 100
 
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2

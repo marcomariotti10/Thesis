@@ -49,8 +49,8 @@ RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehic
 
 # For Show_lidar_data and Show_grid_map
 LIDAR_FILE_1 = 450
-LIDAR_FILE_2 = "20250204_092832_022140_040448"
-LIDAR_FILE_3 = "20250210_172112_170190_38"
+LIDAR_FILE_2 = 100
+LIDAR_FILE_3 = 100
 
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2

@@ -9,51 +9,207 @@ import sys
 from sklearn.model_selection import train_test_split
 import importlib
 from torchsummary import summary
-import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
 import gc
 from multiprocessing import Pool, set_start_method
-from matplotlib.path import Path
-import open3d as o3d
-import matplotlib.pyplot as plt
-import cv2
-from sklearn.preprocessing import MinMaxScaler
-from functions_for_NN import *
-from constants import *
+
+# Import constants and catch any import errors
+from link_to_constants import *
+link_constants()
+try:
+    from constants import * # type: ignore
+    print("Successfully imported constants.")
+except ImportError as e:
+    print(f"Error importing constants: {e}")
+
+
+def load_points_grid_map(csv_file):
+    """Load bounding box vertices from a CSV file."""
+    points = []
+    with open(csv_file, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            # Extract the 3D coordinates of the 8 bounding box vertices
+            coordinates = [
+                float(row[0]), float(row[1]), float(row[2])
+                ]
+            points.append(coordinates)
+    np_points = np.array(points)
+    return np_points
+
+def process_file(file, grid_map_path):
+    try:
+        complete_path = os.path.join(grid_map_path, file)
+        print(f"Loading {file}...")
+        points = load_points_grid_map(complete_path)
+
+        # Recreate the grid map from positions array
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+        # Fill the grid map with values from positions array
+        for pos in points:
+            col, row, height = pos
+            grid_map_recreate[int(row), int(col)] = height
+
+        return grid_map_recreate
+    except Exception as e:
+        print(f"Error processing file {file}: {e}")
+        return None
+
+def generate_grid_map(grid_map_path):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    with Pool() as pool:
+        list_grid_maps = pool.starmap(process_file, [(file, grid_map_path) for file in grid_map_files])
+    return [gm for gm in list_grid_maps if gm is not None]
+
+def load_points_grid_map_BB (csv_file):
+    """Load bounding box vertices from a CSV file."""
+    points = []
+    with open(csv_file, 'r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header
+        
+        for row in reader:
+            # Extract the 3D coordinates of the 8 bounding box vertices
+            coordinates = [ [ float(row[i]), float(row[i+1]), float(row[i+2]) ] for i in range(2, 12, 3)]
+            points.append(coordinates)
+
+    np_points = np.array(points)
+    return np_points
+
+def process_file_BB(file, grid_map_path):
+    try:
+        complete_path = os.path.join(grid_map_path, file)
+        print(f"Loading {file}...")
+        points = load_points_grid_map_BB(complete_path)
+
+        num_BB = points.shape[0]
+
+        # Recreate the grid map from positions array
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+        # Fill the grid map with values from positions array
+        for i in range(len(points)):
+            for j in range(4):
+                col, row, height = points[i][j]
+                grid_map_recreate[int(row), int(col)] = height
+
+        return grid_map_recreate, num_BB
+    except Exception as e:
+        print(f"Error processing file {file}: {e}")
+        return None, None
+
+def generate_grid_map_BB (grid_map_path):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    with Pool() as pool:
+        results = pool.starmap(process_file_BB, [(file, grid_map_path) for file in grid_map_files])
+    list_grid_maps, list_num_BB = zip(*[(gm, nb) for gm, nb in results if gm is not None and nb is not None])
+    return list_grid_maps, list_num_BB
+
+def split_data(lidar_data, BB_data, num_BB, size):
+    # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
+    X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = train_test_split(
+        lidar_data, # Samples
+        BB_data, # Labels
+        num_BB, # Number of BB
+        test_size = size,
+        random_state=SEED, # type: ignore
+        stratify=num_BB
+    )
+    return X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test
+
+# Define the autoencoder model
+class Autoencoder(nn.Module):
+    def __init__(self): # Constructor method for the autoencoder
+        super(Autoencoder, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2)
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
+    try:
+        complete_path = os.path.join(grid_map_path, file)
+        complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
+        print(f"Loading {file} and {file_BB}...")
+
+        points = load_points_grid_map(complete_path)
+        points_BB = load_points_grid_map_BB(complete_path_BB)
+
+        num_BB = points_BB.shape[0]
+
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+        for pos in points:
+            col, row, height = pos
+            grid_map_recreate[int(row), int(col)] = height
+
+        for i in range(len(points_BB)):
+            for j in range(4):
+                col, row, height = points_BB[i][j]
+                grid_map_recreate_BB[int(row), int(col)] = height
+
+        return grid_map_recreate, grid_map_recreate_BB, num_BB
+    except Exception as e:
+        print(f"Error processing files {file} and {file_BB}: {e}")
+        return None, None, None
+
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
+    
+    with Pool() as pool:
+        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
+    
+    for gm, gmbb, nb in results:
+        if gm is not None and gmbb is not None and nb is not None:
+            complete_grid_maps.append(gm)
+            complete_grid_maps_BB.append(gmbb)
+            complete_num_BB.append(nb)
+        else:
+            print("Error processing file.")
 
 if __name__ == "__main__":
-    
+    set_start_method("spawn")
     gc.collect()
-
-    set_start_method("spawn", force=True)
 
     complete_grid_maps = []
     complete_grid_maps_BB = []
     complete_num_BB = []
 
     # Load sensor1
-    grid_map_files1 = sorted([f for f in os.listdir(LIDAR_1_GRID_DIRECTORY)]) # type: ignore
-    grid_map_BB_files1 = sorted([f for f in os.listdir(POSITION_LIDAR_1_GRID_NO_BB)]) # type: ignore
-
-    generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, grid_map_files1, grid_map_BB_files1, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
-
-    del grid_map_files1, grid_map_BB_files1
+    generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
     # Load sensor2
-    grid_map_files2 = sorted([f for f in os.listdir(LIDAR_2_GRID_DIRECTORY)]) # type: ignore
-    grid_map_BB_files2 = sorted([f for f in os.listdir(POSITION_LIDAR_2_GRID_NO_BB)]) # type: ignore
-
-    generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, grid_map_files2, grid_map_BB_files2, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
-
-    del grid_map_files2, grid_map_BB_files2
+    generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
     # Load sensor3
-    grid_map_files3 = sorted([f for f in os.listdir(LIDAR_3_GRID_DIRECTORY)]) # type: ignore
-    grid_map_BB_files3 = sorted([f for f in os.listdir(POSITION_LIDAR_3_GRID_NO_BB)]) # type: ignore
-
-    generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, grid_map_files3, grid_map_BB_files3, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
-
-    del grid_map_files3, grid_map_BB_files3
+    generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
 
     #print(f"Number of grid maps for each sensor: {len(complete_grid_maps[0])}, {len(complete_grid_maps[1])}, {len(complete_grid_maps[2])}")
     #print(f"Number of grid maps BB for each sensor: {len(complete_grid_maps_BB[0])}, {len(complete_grid_maps_BB[1])}, {len(complete_grid_maps_BB[2])}")
@@ -72,17 +228,6 @@ if __name__ == "__main__":
 
     complete_num_BB = np.expand_dims(complete_num_BB, axis=1)
     print(f"expanded number of bounding boxes shape : {complete_num_BB.shape}")
-
-    # ELiminate all the data points with 0 bounding boxes
-    total_num_greater_than_1 = 0
-    total_num_equal_to_0 = 0
-    for i in range(complete_num_BB.shape[0]):
-        if (complete_num_BB[i] >= 1):
-            total_num_greater_than_1 += 1
-        else:
-            total_num_equal_to_0 += 1
-
-    print(total_num_greater_than_1, total_num_equal_to_0)
 
     # Split the data
     X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = split_data(complete_grid_maps, complete_grid_maps_BB, complete_num_BB, TEST_SIZE) # type: ignore
@@ -147,16 +292,15 @@ if __name__ == "__main__":
 
     print("Len dataset (train, val, test):",len(train_dataset), len(val_dataset), len(test_dataset))
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
     del train_dataset, val_dataset, test_dataset
 
     model = Autoencoder()
-    model.apply(weights_init)
-    criterion = WeightedCustomLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.01) # model.parameters() passes the parameters of the model to the optimizer so that it can update them during training.
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.1) # model.parameters() passes the parameters of the model to the optimizer so that it can update them during training.
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
 
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -181,10 +325,7 @@ if __name__ == "__main__":
     # Clear GPU cache
     torch.cuda.empty_cache()
 
-    # Initialize early stopping
-    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
-
-    num_epochs = 50
+    num_epochs = 20
     # Training loop
     for epoch in range(num_epochs):
         model.train()
@@ -217,12 +358,6 @@ if __name__ == "__main__":
         print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
         # Clear GPU cache
         torch.cuda.empty_cache()
-
-        # Check early stopping
-        early_stopping(val_loss)
-        if early_stopping.early_stop:
-            print("Early stopping triggered")
-            break
 
     # Evaluate on test set
     model.eval()

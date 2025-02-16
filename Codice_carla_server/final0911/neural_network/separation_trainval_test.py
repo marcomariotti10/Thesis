@@ -2,35 +2,10 @@ from constants import *
 import os
 import csv
 import shutil
+import numpy as np
 from sklearn.model_selection import train_test_split
 from multiprocessing import Pool, set_start_method
-
-def number_of_BB(files, path):
-    BB = []
-    for file in files:
-        complete_path = os.path.join(path, file)
-        with open(complete_path, 'r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Skip header
-            BB.append(sum(1 for row in reader))
-    return BB
-
-def split_data(files_lidar, files_BB, BB_data):
-    files_lidar_trainval, files_lidar_test, files_BB_trainval, files_BB_test, BB_trainval, BB_test = train_test_split(
-        files_lidar, # Samples
-        files_BB, # Labels
-        BB_data,
-        test_size = TEST_SIZE,
-        random_state=SEED, # type: ignore
-        stratify=BB_data
-    )
-    return files_lidar_trainval, files_lidar_test, files_BB_trainval, files_BB_test, BB_trainval, BB_test
-
-def visualize_proportion(data):
-    sum = 0
-    for i in range(len(data)):
-        sum += data[i]
-    return sum
+from functions_for_NN import number_of_BB, split_data, visualize_proportion
 
 def cut_files(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_BB_path):
     """
@@ -66,17 +41,17 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_fin
     
     files_lidar = sorted([f for f in os.listdir(lidar_path_initial)]) #type: ignore
     files_BB = sorted([f for f in os.listdir(BB_path_initial)]) #type: ignore
-    BB = number_of_BB(files_BB, BB_path_initial)
+    numbers_of_BB = number_of_BB(files_BB, BB_path_initial)
 
-    files_lidar_trainval, files_lidar_test, files_BB_trainval, files_BB_test, BB_trainval, BB_test = split_data(files_lidar, files_BB, BB)
+    files_lidar_trainval, files_lidar_test, files_BB_trainval, files_BB_test, BB_trainval, BB_test = split_data(files_lidar, files_BB, numbers_of_BB, TEST_SIZE)
 
-    sum = visualize_proportion(BB_trainval)
-    print(f"Sum_train: ", sum)
-    print(f"Average_sum_train: ", sum/len(BB_trainval))
+    sum_ped, sum_bic, sum_car = visualize_proportion(BB_trainval)
+    print(f"Sum_train: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_sum_train: ", sum_ped/len(BB_trainval), sum_bic/len(BB_trainval), sum_car/len(BB_trainval))
 
-    sum = visualize_proportion(BB_test)
-    print(f"Sum_test: ", sum)
-    print(f"Average_sum_test: ", sum/len(BB_test))
+    sum_ped, sum_bic, sum_car = visualize_proportion(BB_test)
+    print(f"Sum_test: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_sum_test: ", sum_ped/len(BB_test), sum_bic/len(BB_test), sum_car/len(BB_test))
 
     move_file(files_lidar_test, files_BB_test, lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_final) #type: ignore
 
