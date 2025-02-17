@@ -134,14 +134,14 @@ if __name__ == "__main__":
             
             complete_grid_maps = []
             complete_grid_maps_BB = []
-            num_BB_in_order = []
+            complete_numb_BB = []
 
             print(f"\nChunck number {i+1} of {number_of_chucks}: ")
 
             files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
             files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
             num_BB = generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            num_BB_in_order.extend(num_BB)
+            complete_numb_BB.extend(num_BB)
 
             # Info for lidar 1 about the number of bounding boxes
             sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
@@ -151,7 +151,7 @@ if __name__ == "__main__":
             files_lidar_chunck = files_lidar_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_lidar_2) ) ] #type: ignore
             files_BB_chunck = files_BB_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_BB_2) ) ] #type: ignore
             num_BB = generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            num_BB_in_order.extend(num_BB)
+            complete_numb_BB.extend(num_BB)
 
             # Info for lidar 2 about the number of bounding boxes
             sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
@@ -161,7 +161,7 @@ if __name__ == "__main__":
             files_lidar_chunck = files_lidar_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_lidar_3) ) ] #type: ignore
             files_BB_chunck = files_BB_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_BB_3) ) ] #type: ignore
             num_BB = generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            num_BB_in_order.extend(num_BB)
+            complete_numb_BB.extend(num_BB)
 
             # Info for lidar 1 about the number of bounding boxes
             sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
@@ -172,13 +172,13 @@ if __name__ == "__main__":
             #print(f"expanded number of bounding boxes shape : {complete_num_BB.shape}")
 
             # Shuffle the data
-            combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, num_BB_in_order))
+            combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, complete_numb_BB))
             random.shuffle(combined_files)
-            complete_grid_maps, complete_grid_maps_BB, num_BB_in_order = zip(*combined_files)
+            complete_grid_maps, complete_grid_maps_BB, complete_numb_BB = zip(*combined_files)
             # Convert back to lists if needed
             complete_grid_maps = list(complete_grid_maps)
             complete_grid_maps_BB = list(complete_grid_maps_BB)
-            num_BB_in_order = list(num_BB_in_order)
+            complete_numb_BB = list(complete_numb_BB)
 
             del combined_files
 
@@ -196,27 +196,27 @@ if __name__ == "__main__":
             y_train = complete_grid_maps_BB[0:math.ceil((len(complete_grid_maps)*0.9))]
             y_val = complete_grid_maps_BB[math.ceil((len(complete_grid_maps)*0.9)):len(complete_grid_maps)]
 
-            num_BB_in_order_train = num_BB_in_order[0:math.ceil((len(complete_grid_maps)*0.9))]
-            num_BB_in_order_val = num_BB_in_order[math.ceil((len(complete_grid_maps)*0.9)):len(complete_grid_maps)]
+            complete_numb_BB_train = complete_numb_BB[0:math.ceil((len(complete_grid_maps)*0.9))]
+            complete_numb_BB_val = complete_numb_BB[math.ceil((len(complete_grid_maps)*0.9)):len(complete_grid_maps)]
 
             sum_ped, sum_bic, sum_car = 0, 0, 0
-            for k in range (len(num_BB_in_order_train)):
-                sum_ped += num_BB_in_order_train[k][0]
-                sum_bic += num_BB_in_order_train[k][1]
-                sum_car += num_BB_in_order_train[k][2]
+            for k in range (len(complete_numb_BB_train)):
+                sum_ped += complete_numb_BB_train[k][0]
+                sum_bic += complete_numb_BB_train[k][1]
+                sum_car += complete_numb_BB_train[k][2]
             print(f"\nSum_train: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_train: ", sum_ped/len(num_BB_in_order_train), sum_bic/len(num_BB_in_order_train), sum_car/len(num_BB_in_order_train))
+            print(f"Average_train: ", sum_ped/len(complete_numb_BB_train), sum_bic/len(complete_numb_BB_train), sum_car/len(complete_numb_BB_train))
 
             sum_ped, sum_bic, sum_car = 0, 0, 0
-            for k in range (len(num_BB_in_order_val)):
-                sum_ped += num_BB_in_order_val[k][0]
-                sum_bic += num_BB_in_order_val[k][1]
-                sum_car += num_BB_in_order_val[k][2]
+            for k in range (len(complete_numb_BB_val)):
+                sum_ped += complete_numb_BB_val[k][0]
+                sum_bic += complete_numb_BB_val[k][1]
+                sum_car += complete_numb_BB_val[k][2]
             print(f"\nSum_val: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_val: ", sum_ped/len(num_BB_in_order_val), sum_bic/len(num_BB_in_order_val), sum_car/len(num_BB_in_order_val))
+            print(f"Average_val: ", sum_ped/len(complete_numb_BB_val), sum_bic/len(complete_numb_BB_val), sum_car/len(complete_numb_BB_val))
 
 
-            del complete_grid_maps, complete_grid_maps_BB, num_BB_in_order, num_BB_in_order_train, num_BB_in_order_val
+            del complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, complete_numb_BB_train, complete_numb_BB_val
 
             print("\nDivision between train and val: ", X_train.shape, X_val.shape, y_train.shape, y_val.shape)
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
 
             print("\nLenght dataset (train, val):",len(train_dataset), len(val_dataset))
 
-            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
             val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
             del train_dataset, val_dataset
@@ -408,7 +408,7 @@ if __name__ == "__main__":
 
         print("\nLenght dataset test:", len(test_dataset))
 
-        test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
         del test_dataset
 
