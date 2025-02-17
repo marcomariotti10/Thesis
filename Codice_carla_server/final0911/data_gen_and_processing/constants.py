@@ -28,9 +28,21 @@ NEW_POSITION_LIDAR_3_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_li
 NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidar3_grid'
 POSITION_LIDAR_3_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidar3_grid_no_BB'
 
+LIDAR_1_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_1'
+POSITION_1_TEST = DATA_HOME + r'/6_test/position_test/position_1'
+
+LIDAR_2_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_2'
+POSITION_2_TEST = DATA_HOME + r'/6_test/position_test/position_2'
+
+LIDAR_3_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_3'
+POSITION_3_TEST = DATA_HOME + r'/6_test/position_test/position_3'
+
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
+SCALER_DIR = HOME_DIR + r'/scalers'
+
+MODEL_DIR = HOME_DIR + r'/models'
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0
@@ -62,4 +74,3 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
-NUMBER_OF_REPETITIONS = 10

@@ -2,10 +2,11 @@ import os
 import numpy as np
 import math
 from sklearn.preprocessing import MinMaxScaler
-from functions_for_NN import generate_combined_grid_maps, number_of_BB, visualize_proportion
+from functions_for_NN import generate_combined_grid_maps, number_of_BB
 from constants import *
 from functions_for_NN import split_data
 import pickle
+import random
 
 def fit_scalers():
     # Initialize the scalers
@@ -13,93 +14,98 @@ def fit_scalers():
     scaler_y = MinMaxScaler()
 
     # Parameters for processing
-    number_of_chucks = 5
+    number_of_chucks = 2
 
-    # Load all the files for lidar 1
-    files_lidar_1 = sorted([f for f in os.listdir(LIDAR_1_GRID_DIRECTORY)]) #type: ignore
-    files_BB_1 = sorted([f for f in os.listdir(POSITION_LIDAR_1_GRID_NO_BB)]) #type: ignore
-    number_BB_1 = number_of_BB(files_BB_1, POSITION_LIDAR_1_GRID_NO_BB)
+    random.seed(SEED)
 
-    # Load all the files for lidar 2
-    files_lidar_2 = sorted([f for f in os.listdir(LIDAR_2_GRID_DIRECTORY)]) #type: ignore
-    files_BB_2 = sorted([f for f in os.listdir(POSITION_LIDAR_2_GRID_NO_BB)]) #type: ignore
-    number_BB_2 = number_of_BB(files_BB_2, POSITION_LIDAR_2_GRID_NO_BB)
+    # Shuffle files_lidar_1 and files_BB_1 in the same way
+    combined_files = list(zip(sorted([f for f in os.listdir(LIDAR_1_GRID_DIRECTORY)]), sorted([f for f in os.listdir(POSITION_LIDAR_1_GRID_NO_BB)])))
+    random.shuffle(combined_files)
+    files_lidar_1, files_BB_1 = zip(*combined_files)
+    # Convert back to lists if needed
+    files_lidar_1 = list(files_lidar_1)
+    files_BB_1 = list(files_BB_1)
 
-    # Load all the files for lidar 3
-    files_lidar_3 = sorted([f for f in os.listdir(LIDAR_3_GRID_DIRECTORY)]) #type: ignore
-    files_BB_3 = sorted([f for f in os.listdir(POSITION_LIDAR_3_GRID_NO_BB)]) #type: ignore
-    number_BB_3 = number_of_BB(files_BB_3, POSITION_LIDAR_3_GRID_NO_BB)
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_1, POSITION_LIDAR_1_GRID_NO_BB)
+    print(f"\nSum_complete_lidar1: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_complete_lidar1: ", sum_ped/len(files_BB_1), sum_bic/len(files_BB_1), sum_car/len(files_BB_1))
+
+    combined_files = list(zip(sorted([f for f in os.listdir(LIDAR_2_GRID_DIRECTORY)]), sorted([f for f in os.listdir(POSITION_LIDAR_2_GRID_NO_BB)])))
+    random.shuffle(combined_files)
+    files_lidar_2, files_BB_2 = zip(*combined_files)
+    # Convert back to lists if needed
+    files_lidar_2 = list(files_lidar_2)
+    files_BB_2 = list(files_BB_2)
+
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_2, POSITION_LIDAR_2_GRID_NO_BB)
+    print(f"\nSum_complete_lidar2: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_complete_lidar2: ", sum_ped/len(files_BB_2), sum_bic/len(files_BB_2), sum_car/len(files_BB_2))
+
+    combined_files = list(zip(sorted([f for f in os.listdir(LIDAR_3_GRID_DIRECTORY)]), sorted([f for f in os.listdir(POSITION_LIDAR_3_GRID_NO_BB)])))
+    random.shuffle(combined_files)
+    files_lidar_3, files_BB_3 = zip(*combined_files)
+    # Convert back to lists if needed
+    files_lidar_3 = list(files_lidar_3)
+    files_BB_3 = list(files_BB_3)
+
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_3, POSITION_LIDAR_3_GRID_NO_BB)
+    print(f"\nSum_complete_lidar3: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_complete_lidar3: ", sum_ped/len(files_BB_3), sum_bic/len(files_BB_3), sum_car/len(files_BB_3))
 
     # Total number of files for each lidar
     total_num_of_files1 = len(files_lidar_1)
     total_num_of_files2 = len(files_lidar_2)
     total_num_of_files3 = len(files_lidar_3)
 
-    print(f"Total number of files for lidar 1: {total_num_of_files1, total_num_of_files2, total_num_of_files3}")
+    print(f"\nTotal number of files: {total_num_of_files1, total_num_of_files2, total_num_of_files3}")
 
     # Number of files of each chunk for each lidar
     file_for_chunck1 = math.ceil(total_num_of_files1 / number_of_chucks) #type: ignore
     file_for_chunck2 = math.ceil(total_num_of_files2 / number_of_chucks) #type: ignore
     file_for_chunck3 = math.ceil(total_num_of_files3 / number_of_chucks) #type: ignore
 
+    print("Number of files for each chunck: ", file_for_chunck1, file_for_chunck2, file_for_chunck3)
+
     for i in range(number_of_chucks): #type: ignore
         complete_grid_maps = []
         complete_grid_maps_BB = []
-        complete_num_BB = []
 
-        print("\nChunck number: ", i+1)
+        print(f"\nChunck number {i+1} of {number_of_chucks}: ")
 
-        # Because the last chunck may have less files
-        files_for_this_chunck1 = min(file_for_chunck1, len(files_lidar_1))
-        print(f"\nNumber of files for chunck number {i+1} of lidar 1: {files_for_this_chunck1}")
-
-        # The if is required because if number_of_chucks is 1, the function split_data will not work
-        if ((number_of_chucks > 1) and (i != number_of_chucks - 1)):
-            files_lidar_1, files_lidar_chunck, files_BB_1, files_BB_chunck, number_BB_1, number_BB_chunck = split_data(files_lidar_1, files_BB_1, number_BB_1, files_for_this_chunck1)
-        else:
-            files_lidar_chunck = files_lidar_1
-            files_BB_chunck = files_BB_1
-            number_BB_chunck = number_BB_1
-        generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+        files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
+        files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
+        generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
 
         # Info for lidar 1 about the number of bounding boxes
-        sum_ped, sum_bic, sum_car = visualize_proportion(number_BB_chunck)
+        sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
         print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
-        print(f"Average_chunck_lidar1: ", sum_ped/len(number_BB_chunck), sum_bic/len(number_BB_chunck), sum_car/len(number_BB_chunck))
+        print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
-        # Because the last chunck may have less files
-        files_for_this_chunck2 = min(file_for_chunck2, len(files_lidar_2))
-        print(f"\nNumber of files for chunck number {i+1} of lidar 2: {files_for_this_chunck2}")
-
-        if ((number_of_chucks > 1) and (i != number_of_chucks - 1)):
-            files_lidar_2, files_lidar_chunck, files_BB_2, files_BB_chunck, number_BB_2, number_BB_chunck = split_data(files_lidar_2, files_BB_2, number_BB_2, files_for_this_chunck2)
-        else:
-            files_lidar_chunck = files_lidar_2
-            files_BB_chunck = files_BB_2
-            number_BB_chunck = number_BB_2
-        generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+        files_lidar_chunck = files_lidar_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_lidar_2) ) ] #type: ignore
+        files_BB_chunck = files_BB_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_BB_2) ) ] #type: ignore
+        generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
         
-        # Info for lidar 1 about the number of bounding boxes
-        sum_ped, sum_bic, sum_car = visualize_proportion(number_BB_chunck)
+        # Info for lidar 2 about the number of bounding boxes
+        sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
         print(f"\nSum_chunck_lidar2: ", sum_ped, sum_bic, sum_car)
-        print(f"Averag_chunck_lidar2: ", sum_ped/len(number_BB_chunck), sum_bic/len(number_BB_chunck), sum_car/len(number_BB_chunck))
+        print(f"Average_chunck_lidar2: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
-        # Because the last chunck may have less files
-        files_for_this_chunck3 = min(file_for_chunck3, len(files_lidar_3))
-        print(f"\nNumber of files for chunck number {i+1} of lidar 2: {files_for_this_chunck3}")
-
-        if ((number_of_chucks > 1) and (i != number_of_chucks - 1)):
-            files_lidar_3, files_lidar_chunck, files_BB_3, files_BB_chunck, number_BB_3, number_BB_chunck = split_data(files_lidar_3, files_BB_3, number_BB_3, files_for_this_chunck3)
-        else:
-            files_lidar_chunck = files_lidar_3
-            files_BB_chunck = files_BB_3
-            number_BB_chunck = number_BB_3
-        generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+        files_lidar_chunck = files_lidar_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_lidar_3) ) ] #type: ignore
+        files_BB_chunck = files_BB_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_BB_3) ) ] #type: ignore
+        generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
 
         # Info for lidar 1 about the number of bounding boxes
-        sum_ped, sum_bic, sum_car = visualize_proportion(number_BB_chunck)
-        print(f"Sum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
-        print(f"Average_chunck_lidar3: ", sum_ped/len(number_BB_chunck), sum_bic/len(number_BB_chunck), sum_car/len(number_BB_chunck))
+        sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
+        print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
+        print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+
+        # Shuffle the data
+        combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB))
+        random.shuffle(combined_files)
+        complete_grid_maps, complete_grid_maps_BB = zip(*combined_files)
+        # Convert back to lists if needed
+        complete_grid_maps = list(complete_grid_maps)
+        complete_grid_maps_BB = list(complete_grid_maps_BB)
 
         # Concatenate the lists in complete_grid_maps along the first dimension
         complete_grid_maps = np.array(complete_grid_maps)

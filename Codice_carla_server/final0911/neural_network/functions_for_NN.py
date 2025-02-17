@@ -66,26 +66,14 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
-def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
+def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_value):
     try:
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        print(f"Loading {file} and {file_BB}...")
+        #print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
-
-        num_BB = [0,0,0]
-        with open(complete_path_BB, 'r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Skip header
-            for row in reader:
-                if row[1] == 'pedestrian':
-                    num_BB[0] += 1
-                elif row[1] == 'bicycle':
-                    num_BB[1] += 1
-                elif row[1] == 'car':
-                    num_BB[2] += 1
 
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
@@ -98,22 +86,46 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path):
             for j in range(4):
                 col, row, height = points_BB[i][j]
                 grid_map_recreate_BB[int(row), int(col)] = height
+        
+        if bool_value:
+            num_BB = [0,0,0]
+            with open(complete_path_BB, 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # Skip header
+                for row in reader:
+                    if row[1] == 'pedestrian':
+                        num_BB[0] += 1
+                    elif row[1] == 'bicycle':
+                        num_BB[1] += 1
+                    elif row[1] == 'car':
+                        num_BB[2] += 1
 
-        return grid_map_recreate, grid_map_recreate_BB, num_BB
+            return grid_map_recreate, grid_map_recreate_BB, num_BB
+        else:
+            return grid_map_recreate, grid_map_recreate_BB
+    
     except Exception as e:
         print(f"Error processing files {file} and {file_BB}: {e}")
         return None, None, None
 
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, bool_value):
     with Pool() as pool:
-        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
+        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path, bool_value) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
     
-    for gm, gmbb, nb in results:
-        if gm is not None and gmbb is not None and nb is not None:
-            complete_grid_maps.append(gm)
-            complete_grid_maps_BB.append(gmbb)
-            complete_num_BB.append(nb)
-    
+    # Bool value is used to determine if the function should return the files_BB, these files are used to view the average ped, bic and car for the y_train and y_test
+    if bool_value:
+        num_BB = []
+        for gm, gmbb, nb in results:
+            if gm is not None and gmbb is not None and nb is not None:
+                complete_grid_maps.append(gm)
+                complete_grid_maps_BB.append(gmbb)
+                num_BB.append(nb)
+        return num_BB
+    else:
+        for gm, gmbb in results:
+            if gm is not None and gmbb is not None:
+                complete_grid_maps.append(gm)
+                complete_grid_maps_BB.append(gmbb)
 
 def fill_polygon(grid_map, vertices, height):
     # Create an empty mask with the same shape as the grid map
@@ -176,32 +188,36 @@ def split_data(lidar_data, BB_data, num_BB, size):
     )
     return X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test
 
-def visualize_proportion(data):
+def process_file_number_BB(file, path):
     sum_ped = 0
     sum_bic = 0
     sum_car = 0
-    for i in range(len(data)):
-        sum_ped += data[i][0]
-        sum_bic += data[i][1]
-        sum_car += data[i][2]
+    complete_path = os.path.join(path, file)
+    with open(complete_path, 'r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header
+        for row in reader:
+            if row[1] == 'pedestrian':
+                sum_ped += 1
+            elif row[1] == 'bicycle':
+                sum_bic += 1
+            elif row[1] == 'car':
+                sum_car += 1
     return sum_ped, sum_bic, sum_car
 
 def number_of_BB(files, path):
-    num_BB = np.zeros((len(files), 3), dtype=int)
-    for i in range (len(files)):
-        file = files[i]
-        complete_path = os.path.join(path, file)
-        with open(complete_path, 'r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Skip header
-            for row in reader:
-                if row[1] == 'pedestrian':
-                    num_BB[i][0] += 1
-                elif row[1] == 'bicycle':
-                    num_BB[i][1] += 1
-                elif row[1] == 'car':
-                    num_BB[i][2] += 1
-    return num_BB
+    with Pool() as pool:
+        results = pool.starmap(process_file_number_BB, [(file, path) for file in files])
+    
+    total_num_ped = 0
+    total_num_bic = 0
+    total_num_car = 0
+    for result in results:
+        total_num_ped += result[0]
+        total_num_bic += result[1]
+        total_num_car += result[2]
+    
+    return total_num_ped, total_num_bic, total_num_car
 
 # Define the autoencoder model
 class Autoencoder(nn.Module):
