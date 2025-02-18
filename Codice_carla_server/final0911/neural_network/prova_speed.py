@@ -1,31 +1,33 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, TensorDataset, random_split
 import csv
 import os
 import numpy as np
-from PIL import Image
 import sys
 from sklearn.model_selection import train_test_split
 import importlib
-import torchvision.transforms as transforms
 from torchsummary import summary
 import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
 import gc
-import random
+from datetime import datetime
 from multiprocessing import Pool, set_start_method
 from matplotlib.path import Path
 import open3d as o3d
+import math
+import pickle
 import matplotlib.pyplot as plt
 import cv2
+import gc
+import random
 from sklearn.preprocessing import MinMaxScaler
 from constants import *
 
-def link_constants():
+def import_constants():
     # Dynamically construct the path to the data_gen_and_processing folder
-    current_dir = os.path.dirname(__file__)
+    current_dir = os.getcwd()
     parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
     data_gen_and_processing_dir = os.path.join(parent_dir, 'data_gen_and_processing')
 
@@ -69,75 +71,49 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
-import gc
-from multiprocessing import Pool
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, complete_grid_maps, complete_grid_maps_BB, complete_num_BB):
+    grid_map_files = sorted([f for f in os.listdir(grid_map_path)])
+    grid_map_BB_files = sorted([f for f in os.listdir(grid_map_BB_path)])
+    
+    for file, file_BB in zip(grid_map_files, grid_map_BB_files):
+        # Import constants inside the function
+        from constants import Y_RANGE, X_RANGE, FLOOR_HEIGHT
 
-def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_value):
-    try:
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
         print(f"Loading {file} and {file_BB}...")
 
-        points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
 
-        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+        num_BB = [0,0,0]
+        with open(complete_path_BB, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            for row in reader:
+                if row[1] == 'pedestrian':
+                    num_BB[0] += 1
+                elif row[1] == 'bicycle':
+                    num_BB[1] += 1
+                elif row[1] == 'car':
+                    num_BB[2] += 1
+        
+        points = load_points_grid_map(complete_path)
+
+        grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=int)
 
         for pos in points:
             col, row, height = pos
-            grid_map_recreate[int(row), int(col)] = height
+            grid_map_recreate[int(row), int(col)] = int(height)
 
         for i in range(len(points_BB)):
             vertices = np.array(points_BB[i])
             height_BB = int(vertices[0, 2])  # Assuming all vertices have the same height
             fill_polygon(grid_map_recreate_BB, vertices, height_BB)
-        
-        if bool_value:
-            num_BB = [0,0,0]
-            with open(complete_path_BB, 'r') as file:
-                reader = csv.reader(file)
-                next(reader)  # Skip header
-                for row in reader:
-                    if row[1] == 'pedestrian':
-                        num_BB[0] += 1
-                    elif row[1] == 'bicycle':
-                        num_BB[1] += 1
-                    elif row[1] == 'car':
-                        num_BB[2] += 1
 
-            return grid_map_recreate, grid_map_recreate_BB, num_BB
-        else:
-            return grid_map_recreate, grid_map_recreate_BB
-    
-    except Exception as e:
-        print(f"Error processing files {file} and {file_BB}: {e}")
-        return None, None, None
-
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, bool_value):
-    print("start processing batch")
-    with Pool() as pool:
-        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path, bool_value) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
-    print("end processing batch")
-    if bool_value:
-        num_BB = []
-        for gm, gmbb, nb in results:
-            if gm is not None and gmbb is not None and nb is not None:
-                complete_grid_maps.append(gm)
-                complete_grid_maps_BB.append(gmbb)
-                num_BB.append(nb)
-    else:
-        for gm, gmbb in results:
-            if gm is not None and gmbb is not None:
-                complete_grid_maps.append(gm)
-                complete_grid_maps_BB.append(gmbb)
-
-    # Explicitly call garbage collection
-    del results
-    gc.collect()
-
-    if bool_value:
-        return num_BB
+        complete_grid_maps.append(grid_map_recreate)
+        complete_grid_maps_BB.append(grid_map_recreate_BB)
+        complete_num_BB.append(num_BB)
 
 def fill_polygon(grid_map, vertices, height):
     # Create an empty mask with the same shape as the grid map
@@ -190,131 +166,23 @@ def visualize_prediction(prediction, real):
 
 def split_data(lidar_data, BB_data, num_BB, size):
     # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
+    from constants import SEED
+
     X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = train_test_split(
         lidar_data, # Samples
         BB_data, # Labels
-        num_BB, # Number of number_of_BB
+        num_BB, # Number of BB
         test_size = size,
         random_state=SEED, # type: ignore
         stratify=num_BB
     )
     return X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test
 
-def process_file_number_BB(file, path):
-    sum_ped = 0
-    sum_bic = 0
-    sum_car = 0
-    complete_path = os.path.join(path, file)
-    with open(complete_path, 'r') as file:
-        reader = csv.reader(file)
-        next(reader)  # Skip header
-        for row in reader:
-            if row[1] == 'pedestrian':
-                sum_ped += 1
-            elif row[1] == 'bicycle':
-                sum_bic += 1
-            elif row[1] == 'car':
-                sum_car += 1
-    return sum_ped, sum_bic, sum_car
-
-def number_of_BB(files, path):
-    with Pool() as pool:
-        results = pool.starmap(process_file_number_BB, [(file, path) for file in files])
-    
-    total_num_ped = 0
-    total_num_bic = 0
-    total_num_car = 0
-    for result in results:
-        total_num_ped += result[0]
-        total_num_bic += result[1]
-        total_num_car += result[2]
-    
-    return total_num_ped, total_num_bic, total_num_car
-
-def rotate_image(image, angle):
-    """
-    Rotate the given image by the specified angle using OpenCV.
-
-    Parameters:
-    - image: numpy array to be rotated.
-    - angle: The angle by which to rotate the image.
-
-    Returns:
-    - Rotated numpy array.
-    """
-    (h, w) = image.shape[:2]
-    center = (w // 2, h // 2)
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated = cv2.warpAffine(image, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return rotated
-
-def slide_horizontal(image, shift):
-    """
-    Slide the given image horizontally by the specified shift using OpenCV.
-
-    Parameters:
-    - image: numpy array to be shifted.
-    - shift: The number of pixels to shift the image.
-
-    Returns:
-    - Shifted numpy array.
-    """
-    M = np.float32([[1, 0, shift], [0, 1, 0]])
-    shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return shifted
-
-def slide_vertical(image, shift):
-    """
-    Slide the given image vertically by the specified shift using OpenCV.
-
-    Parameters:
-    - image: numpy array to be shifted.
-    - shift: The number of pixels to shift the image.
-
-    Returns:
-    - Shifted numpy array.
-    """
-    M = np.float32([[1, 0, 0], [0, 1, shift]])
-    shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return shifted
-
-def apply_augmentation(grid_maps, grid_maps_BB,j):
-
-    augmentations = {
-        'horizontal_flip': lambda img: cv2.flip(img, 1),
-        'vertical_flip': lambda img: cv2.flip(img, 0),
-        'rotation': rotate_image,
-        'slide_horizontal': slide_horizontal,
-        'slide_vertical': slide_vertical
-    }
-
-    # Set the random seed for consistency
-    random.seed(SEED + j)
-    
-    for i in range(grid_maps.shape[0]):
-        grid_map = grid_maps[i]
-        grid_map_BB = grid_maps_BB[i]
-        
-        # Randomly select an augmentation
-        augmentation_name, augmentation = random.choice(list(augmentations.items()))
-
-        # Apply the same augmentation to both images
-        if augmentation_name == 'rotation':
-            angle = random.randint(-45, 45)
-            augmented_grid_map = augmentation(grid_map, angle)
-            augmented_grid_map_BB = augmentation(grid_map_BB, angle)
-        elif augmentation_name in ['slide_horizontal', 'slide_vertical']:
-            shift = random.randint(-100, 100)
-            augmented_grid_map = augmentation(grid_map, shift)
-            augmented_grid_map_BB = augmentation(grid_map_BB, shift)
-        else:
-            augmented_grid_map = augmentation(grid_map)
-            augmented_grid_map_BB = augmentation(grid_map_BB)
-        
-        augmented_grid_maps.append(augmented_grid_map)
-        augmented_grid_maps_BB.append(augmented_grid_map_BB)
-    
-    return augmented_grid_maps, augmented_grid_maps_BB
+def visualize_proportion(data):
+    sum = 0
+    for i in range(len(data)):
+        sum += data[i]
+    return sum
 
 # Define the autoencoder model
 class Autoencoder(nn.Module):
@@ -384,3 +252,23 @@ class WeightedCustomLoss(nn.Module):
         # Apply weighting to the loss
         weighted_loss = loss * self.weight + self.mse_loss(predictions * (1 - mask), targets * (1 - mask))
         return weighted_loss
+    
+if __name__ == "__main__":
+    
+    gc.collect()
+    
+    complete_grid_maps = []
+    complete_grid_maps_BB = []
+    complete_num_BB = []
+
+    start = datetime.now()
+    # Load sensor1
+    generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+
+    # Load sensor2
+    generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+
+    # Load sensor3
+    generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+
+    print(f"Time taken to load data: {datetime.now() - start}")

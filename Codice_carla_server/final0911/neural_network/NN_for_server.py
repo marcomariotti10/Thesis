@@ -5,9 +5,12 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import csv
 import os
 import numpy as np
+import cProfile
+import pstats
 import sys
 from sklearn.model_selection import train_test_split
 import importlib
+from datetime import datetime
 from torchsummary import summary
 import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
@@ -31,6 +34,8 @@ if __name__ == "__main__":
     gc.collect()
 
     set_start_method("spawn", force=True)
+
+    random.seed(SEED)
 
     # Model creation
     model = Autoencoder()
@@ -62,7 +67,7 @@ if __name__ == "__main__":
 
     # Parameters for training
     early_stopping_triggered = False
-    number_of_chucks= 5
+    number_of_chucks= 1
     num_total_epochs = 1
     num_epochs_for_each_chunck = 1
     number_of_chucks_testset = 1
@@ -127,7 +132,9 @@ if __name__ == "__main__":
         
         if early_stopping_triggered:
             break
+
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
+        random.seed(SEED + j)
 
         for i in range(number_of_chucks): #type: ignore
             
@@ -140,15 +147,24 @@ if __name__ == "__main__":
 
             print(f"\nChunck number {i+1} of {number_of_chucks}: ")
 
+            profiler = cProfile.Profile()
+            profiler.enable()
+
+            start = datetime.now()
+
             files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
             files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
             num_BB = generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
             complete_numb_BB.extend(num_BB)
 
+            profiler.disable()
+            stats = pstats.Stats(profiler).sort_stats('cumtime')
+            stats.print_stats(10)  # Print top 10 functions by cumulative time
+
             # Info for lidar 1 about the number of bounding boxes
-            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
-            print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
+            #print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
+            #print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
             
             files_lidar_chunck = files_lidar_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_lidar_2) ) ] #type: ignore
             files_BB_chunck = files_BB_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_BB_2) ) ] #type: ignore
@@ -156,9 +172,9 @@ if __name__ == "__main__":
             complete_numb_BB.extend(num_BB)
 
             # Info for lidar 2 about the number of bounding boxes
-            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
-            print(f"\nSum_chunck_lidar2: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_chunck_lidar2: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
+            #print(f"\nSum_chunck_lidar2: ", sum_ped, sum_bic, sum_car)
+            #print(f"Average_chunck_lidar2: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
             files_lidar_chunck = files_lidar_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_lidar_3) ) ] #type: ignore
             files_BB_chunck = files_BB_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_BB_3) ) ] #type: ignore
@@ -166,9 +182,9 @@ if __name__ == "__main__":
             complete_numb_BB.extend(num_BB)
 
             # Info for lidar 3 about the number of bounding boxes
-            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
-            print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
+            #print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
+            #print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
             # Concatenate the lists in complete_grid_maps along the first dimension
             complete_grid_maps = np.array(complete_grid_maps)
@@ -180,7 +196,7 @@ if __name__ == "__main__":
 
             complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
             complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
-
+            
             # Shuffle the data
             combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, complete_numb_BB))
             random.shuffle(combined_files)
@@ -192,6 +208,9 @@ if __name__ == "__main__":
 
             del combined_files
             gc.collect()
+
+            augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(complete_grid_maps[0:100], complete_grid_maps_BB[0:100], j)
+            #TODO: finish the augmentation
 
             # Split the data
             X_train = complete_grid_maps[0:math.ceil((len(complete_grid_maps)*0.9))]
@@ -438,3 +457,6 @@ if __name__ == "__main__":
     model_save_path = os.path.join(MODEL_DIR, model_name)
     torch.save(model.state_dict(), model_save_path)
     print(f'Model saved')
+
+
+#TODO: understand why the jupither is much faster

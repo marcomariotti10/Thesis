@@ -18,5 +18,5 @@ if __name__ == "__main__":
     for script in scripts:
         new_dir = os.path.join(current_dir, script)
         print(f"Starting preprocessing for {script}")
-        start_preprocessing(new_dir, '3\n') 
+        start_preprocessing(new_dir, '4\n') 
         print("\n")
