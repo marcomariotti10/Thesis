@@ -5,13 +5,16 @@ from torch.utils.data import DataLoader, Dataset
 import csv
 import os
 import numpy as np
+from PIL import Image
 import sys
 from sklearn.model_selection import train_test_split
 import importlib
+import torchvision.transforms as transforms
 from torchsummary import summary
 import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler
 import gc
+import random
 from multiprocessing import Pool, set_start_method
 from matplotlib.path import Path
 import open3d as o3d
@@ -70,7 +73,7 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_v
     try:
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        #print(f"Loading {file} and {file_BB}...")
+        print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
@@ -218,6 +221,63 @@ def number_of_BB(files, path):
         total_num_car += result[2]
     
     return total_num_ped, total_num_bic, total_num_car
+
+def slide_horizontal(image, max_shift=100):
+    shift = random.randint(-max_shift, max_shift)
+    return image.transform(image.size, Image.AFFINE, (1, 0, shift, 0, 1, 0))
+
+def slide_vertical(image, max_shift=100):
+    shift = random.randint(-max_shift, max_shift)
+    return image.transform(image.size, Image.AFFINE, (1, 0, 0, 0, 1, shift))
+
+def apply_augmentation(grid_maps, grid_maps_BB):
+
+    augmentations = {
+        'horizontal_flip': transforms.RandomHorizontalFlip(p=1.0),
+        'vertical_flip': transforms.RandomVerticalFlip(p=1.0),
+        'rotation': transforms.RandomRotation(45, fill=(0,)),  # Fill with black (0) for single-channel images
+        'slide_horizontal': slide_horizontal,
+        'slide_vertical': slide_vertical
+    }
+
+    augmented_grid_maps = []
+    augmented_grid_maps_BB = []
+    applied_augmentations = []
+    
+    for i in range(grid_maps.shape[0]):
+        grid_map = grid_maps[i]
+        grid_map_BB = grid_maps_BB[i]
+
+        grid_map = np.reshape(grid_map, (400, 400))
+        grid_map_BB = np.reshape(grid_map_BB, (400, 400))
+        
+        # Convert numpy arrays to PIL images
+        grid_map_img = transforms.ToPILImage()(grid_map)
+        grid_map_BB_img = transforms.ToPILImage()(grid_map_BB)
+        
+        # Randomly select an augmentation
+        augmentation_name, augmentation = random.choice(list(augmentations.items()))
+        
+        # Apply the same augmentation to both images
+        if augmentation_name in ['slide_horizontal', 'slide_vertical']:
+            augmented_grid_map_img = augmentation(grid_map_img)
+            augmented_grid_map_BB_img = augmentation(grid_map_BB_img)
+        else:
+            augmented_grid_map_img = augmentation(grid_map_img)
+            augmented_grid_map_BB_img = augmentation(grid_map_BB_img)
+        
+        # Convert PIL images back to numpy arrays
+        augmented_grid_map = transforms.ToTensor()(augmented_grid_map_img).numpy()
+        augmented_grid_map_BB = transforms.ToTensor()(augmented_grid_map_BB_img).numpy()
+        
+        augmented_grid_map = np.reshape(augmented_grid_map, (400, 400))
+        augmented_grid_map_BB = np.reshape(augmented_grid_map_BB, (400, 400))
+
+        augmented_grid_maps.append(augmented_grid_map)
+        augmented_grid_maps_BB.append(augmented_grid_map_BB)
+        applied_augmentations.append(augmentation_name)
+    
+    return augmented_grid_maps, augmented_grid_maps_BB, applied_augmentations
 
 # Define the autoencoder model
 class Autoencoder(nn.Module):

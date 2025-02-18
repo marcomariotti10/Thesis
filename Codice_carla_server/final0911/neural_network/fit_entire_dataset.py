@@ -7,6 +7,8 @@ from constants import *
 from functions_for_NN import split_data
 import pickle
 import random
+from pympler import asizeof
+
 
 def fit_scalers():
     # Initialize the scalers
@@ -14,7 +16,7 @@ def fit_scalers():
     scaler_y = MinMaxScaler()
 
     # Parameters for processing
-    number_of_chucks = 2
+    number_of_chucks = 5
 
     random.seed(SEED)
 
@@ -29,6 +31,8 @@ def fit_scalers():
     sum_ped, sum_bic, sum_car = number_of_BB(files_BB_1, POSITION_LIDAR_1_GRID_NO_BB)
     print(f"\nSum_complete_lidar1: ", sum_ped, sum_bic, sum_car)
     print(f"Average_complete_lidar1: ", sum_ped/len(files_BB_1), sum_bic/len(files_BB_1), sum_car/len(files_BB_1))
+
+    #print(asizeof.asizeof(files_lidar_1), asizeof.asizeof(files_BB_1))
 
     combined_files = list(zip(sorted([f for f in os.listdir(LIDAR_2_GRID_DIRECTORY)]), sorted([f for f in os.listdir(POSITION_LIDAR_2_GRID_NO_BB)])))
     random.shuffle(combined_files)
@@ -66,6 +70,7 @@ def fit_scalers():
 
     print("Number of files for each chunck: ", file_for_chunck1, file_for_chunck2, file_for_chunck3)
 
+
     for i in range(number_of_chucks): #type: ignore
         complete_grid_maps = []
         complete_grid_maps_BB = []
@@ -75,6 +80,8 @@ def fit_scalers():
         files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
         files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
         generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
+
+        #print(asizeof.asizeof(files_lidar_chunck), asizeof.asizeof(files_BB_chunck))
 
         # Info for lidar 1 about the number of bounding boxes
         sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)

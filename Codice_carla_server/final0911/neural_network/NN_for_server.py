@@ -21,6 +21,7 @@ import pickle
 from datetime import datetime
 import random
 import math
+import torchvision.transforms as transforms
 from sklearn.preprocessing import MinMaxScaler
 from functions_for_NN import *
 from constants import *
@@ -61,10 +62,10 @@ if __name__ == "__main__":
 
     # Parameters for training
     early_stopping_triggered = False
-    number_of_chucks= 3
+    number_of_chucks= 5
     num_total_epochs = 1
     num_epochs_for_each_chunck = 1
-    number_of_chucks_testset = 2
+    number_of_chucks_testset = 1
 
     # Load scalers
     with open(os.path.join(SCALER_DIR, 'scaler_X.pkl'), 'rb') as f:
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     files_BB_3 = list(files_BB_3)
 
     del combined_files
+    gc.collect()
 
     sum_ped, sum_bic, sum_car = number_of_BB(files_BB_3, POSITION_LIDAR_3_GRID_NO_BB)
     print(f"\nSum_complete_lidar3: ", sum_ped, sum_bic, sum_car)
@@ -163,24 +165,10 @@ if __name__ == "__main__":
             num_BB = generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
             complete_numb_BB.extend(num_BB)
 
-            # Info for lidar 1 about the number of bounding boxes
+            # Info for lidar 3 about the number of bounding boxes
             sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
             print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
             print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
-
-            #complete_num_BB = np.expand_dims(complete_num_BB, axis=1)
-            #print(f"expanded number of bounding boxes shape : {complete_num_BB.shape}")
-
-            # Shuffle the data
-            combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, complete_numb_BB))
-            random.shuffle(combined_files)
-            complete_grid_maps, complete_grid_maps_BB, complete_numb_BB = zip(*combined_files)
-            # Convert back to lists if needed
-            complete_grid_maps = list(complete_grid_maps)
-            complete_grid_maps_BB = list(complete_grid_maps_BB)
-            complete_numb_BB = list(complete_numb_BB)
-
-            del combined_files
 
             # Concatenate the lists in complete_grid_maps along the first dimension
             complete_grid_maps = np.array(complete_grid_maps)
@@ -189,6 +177,21 @@ if __name__ == "__main__":
             # Concatenate the lists in complete_grid_maps_BB along the first dimension
             complete_grid_maps_BB = np.array(complete_grid_maps_BB)
             print(f"complete grid map BB shape : {complete_grid_maps_BB.shape}")
+
+            complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
+            complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
+
+            # Shuffle the data
+            combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, complete_numb_BB))
+            random.shuffle(combined_files)
+            complete_grid_maps, complete_grid_maps_BB, complete_numb_BB = zip(*combined_files)
+            # Convert back to lists if needed
+            complete_grid_maps = np.array(complete_grid_maps)
+            complete_grid_maps_BB = np.array(complete_grid_maps_BB)
+            complete_numb_BB = list(complete_numb_BB)
+
+            del combined_files
+            gc.collect()
 
             # Split the data
             X_train = complete_grid_maps[0:math.ceil((len(complete_grid_maps)*0.9))]
@@ -217,18 +220,9 @@ if __name__ == "__main__":
 
 
             del complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, complete_numb_BB_train, complete_numb_BB_val
+            gc.collect()
 
             print("\nDivision between train and val: ", X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-
-            # Normalize the training data and save the scalers in variables
-            X_train = scaler_X.transform(X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
-            X_val = scaler_X.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
-
-            # Normalize the labels
-            y_train = scaler_y.transform(y_train.reshape(-1, y_train.shape[-1])).reshape(y_train.shape)
-            y_val = scaler_y.transform(y_val.reshape(-1, y_val.shape[-1])).reshape(y_val.shape)
-            
-            print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
 
             X_train = np.expand_dims(X_train, axis=1)
             X_val = np.expand_dims(X_val, axis=1)
@@ -245,6 +239,7 @@ if __name__ == "__main__":
             val_dataset = TensorDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).float())
             
             del X_train, X_val, y_train, y_val
+            gc.collect()
 
             print("\nLenght dataset (train, val):",len(train_dataset), len(val_dataset))
 
@@ -252,6 +247,7 @@ if __name__ == "__main__":
             val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
             del train_dataset, val_dataset
+            gc.collect()
 
             for epoch in range(num_epochs_for_each_chunck):
                 
@@ -291,6 +287,8 @@ if __name__ == "__main__":
     print("\n-------------------------------------------")
     print("Training completed")
     print("-------------------------------------------\n") 
+
+    gc.collect()
 
     # Shuffle files_lidar_1 and files_BB_1 in the same way
     combined_files = list(zip(sorted([f for f in os.listdir(LIDAR_1_TEST)]), sorted([f for f in os.listdir(POSITION_1_TEST)])))
@@ -339,6 +337,8 @@ if __name__ == "__main__":
 
     print(f"Number of files for each chunck: {file_for_chunck1, file_for_chunck2, file_for_chunck3}")
 
+    gc.collect()
+
     test_loss = 0
     predictions = []
 
@@ -349,7 +349,7 @@ if __name__ == "__main__":
         complete_grid_maps = []
         complete_grid_maps_BB = []
 
-        print(f"\nTest chunck number {i+1} of {number_of_chucks}: ")
+        print(f"\nTest chunck number {i+1} of {number_of_chucks_testset}: ")
 
         files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
         files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
@@ -389,6 +389,8 @@ if __name__ == "__main__":
         #complete_num_BB = np.expand_dims(complete_num_BB, axis=1)
         #print(f"expanded number of bounding boxes shape : {complete_num_BB.shape}")
 
+        gc.collect()
+
         # Normalize the data
         complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
 
@@ -411,6 +413,7 @@ if __name__ == "__main__":
         test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
         del test_dataset
+        gc.collect()
 
         # Evaluate on test set
         model.eval()
