@@ -20,6 +20,8 @@ from matplotlib.path import Path
 import open3d as o3d
 import matplotlib.pyplot as plt
 import cv2
+import gc
+from multiprocessing import Pool
 from sklearn.preprocessing import MinMaxScaler
 from constants import *
 
@@ -42,17 +44,8 @@ def link_constants():
 
 def load_points_grid_map(csv_file):
     """Load bounding box vertices from a CSV file."""
-    points = []
-    with open(csv_file, 'r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            # Extract the 3D coordinates of the 8 bounding box vertices
-            coordinates = [
-                float(row[0]), float(row[1]), float(row[2])
-                ]
-            points.append(coordinates)
-    np_points = np.array(points)
-    return np_points
+    points = np.loadtxt(csv_file, delimiter=',', usecols=(0, 1, 2), dtype=float)
+    return points
 
 def load_points_grid_map_BB (csv_file):
     """Load bounding box vertices from a CSV file."""
@@ -69,14 +62,11 @@ def load_points_grid_map_BB (csv_file):
     np_points = np.array(points)
     return np_points
 
-import gc
-from multiprocessing import Pool
-
-def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_value):
-    try:
+def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, bool_value):
+    for file, file_BB in zip(grid_map_files, grid_map_BB_files):
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        print(f"Loading {file} and {file_BB}...")
+        #print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
@@ -84,9 +74,8 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_v
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
 
-        for pos in points:
-            col, row, height = pos
-            grid_map_recreate[int(row), int(col)] = height
+        cols, rows, heights = points.T
+        grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(int)
 
         for i in range(len(points_BB)):
             vertices = np.array(points_BB[i])
@@ -106,38 +95,12 @@ def process_combined_file(file, file_BB, grid_map_path, grid_map_BB_path, bool_v
                     elif row[1] == 'car':
                         num_BB[2] += 1
 
-            return grid_map_recreate, grid_map_recreate_BB, num_BB
+            complete_grid_maps.append(grid_map_recreate)
+            complete_grid_maps_BB.append(grid_map_recreate_BB)
+            complete_num_BB.append(num_BB)
         else:
-            return grid_map_recreate, grid_map_recreate_BB
-    
-    except Exception as e:
-        print(f"Error processing files {file} and {file_BB}: {e}")
-        return None, None, None
-
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, bool_value):
-    print("start processing batch")
-    with Pool() as pool:
-        results = pool.starmap(process_combined_file, [(file, file_BB, grid_map_path, grid_map_BB_path, bool_value) for file, file_BB in zip(grid_map_files, grid_map_BB_files)])
-    print("end processing batch")
-    if bool_value:
-        num_BB = []
-        for gm, gmbb, nb in results:
-            if gm is not None and gmbb is not None and nb is not None:
-                complete_grid_maps.append(gm)
-                complete_grid_maps_BB.append(gmbb)
-                num_BB.append(nb)
-    else:
-        for gm, gmbb in results:
-            if gm is not None and gmbb is not None:
-                complete_grid_maps.append(gm)
-                complete_grid_maps_BB.append(gmbb)
-
-    # Explicitly call garbage collection
-    del results
-    gc.collect()
-
-    if bool_value:
-        return num_BB
+            complete_grid_maps.append(grid_map_recreate)
+            complete_grid_maps_BB.append(grid_map_recreate_BB)
 
 def fill_polygon(grid_map, vertices, height):
     # Create an empty mask with the same shape as the grid map
@@ -218,18 +181,23 @@ def process_file_number_BB(file, path):
     return sum_ped, sum_bic, sum_car
 
 def number_of_BB(files, path):
-    with Pool() as pool:
-        results = pool.starmap(process_file_number_BB, [(file, path) for file in files])
+    sum_ped = 0
+    sum_bic = 0
+    sum_car = 0
+    for file in files:
+        complete_path = os.path.join(path, file)
+        with open(complete_path, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            for row in reader:
+                if row[1] == 'pedestrian':
+                    sum_ped += 1
+                elif row[1] == 'bicycle':
+                    sum_bic += 1
+                elif row[1] == 'car':
+                    sum_car += 1
     
-    total_num_ped = 0
-    total_num_bic = 0
-    total_num_car = 0
-    for result in results:
-        total_num_ped += result[0]
-        total_num_bic += result[1]
-        total_num_car += result[2]
-    
-    return total_num_ped, total_num_bic, total_num_car
+    return sum_ped, sum_bic, sum_car
 
 def rotate_image(image, angle):
     """
@@ -278,7 +246,7 @@ def slide_vertical(image, shift):
     shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     return shifted
 
-def apply_augmentation(grid_maps, grid_maps_BB,j):
+def apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB, j):
 
     augmentations = {
         'horizontal_flip': lambda img: cv2.flip(img, 1),
@@ -290,10 +258,13 @@ def apply_augmentation(grid_maps, grid_maps_BB,j):
 
     # Set the random seed for consistency
     random.seed(SEED + j)
+
+    augmented_grid_maps = []
+    augmented_grid_maps_BB = []
     
-    for i in range(grid_maps.shape[0]):
-        grid_map = grid_maps[i]
-        grid_map_BB = grid_maps_BB[i]
+    for i in range(random_complete_grid_maps.shape[0]):
+        grid_map = random_complete_grid_maps[i]
+        grid_map_BB = random_complete_grid_maps_BB[i]
         
         # Randomly select an augmentation
         augmentation_name, augmentation = random.choice(list(augmentations.items()))

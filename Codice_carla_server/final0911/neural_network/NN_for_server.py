@@ -18,6 +18,7 @@ import gc
 from multiprocessing import Pool, set_start_method
 from matplotlib.path import Path
 import open3d as o3d
+from datetime import datetime
 import matplotlib.pyplot as plt
 import cv2
 import pickle
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     early_stopping_triggered = False
     number_of_chucks= 1
     num_total_epochs = 1
-    num_epochs_for_each_chunck = 1
+    num_epochs_for_each_chunck = 50
     number_of_chucks_testset = 1
 
     # Load scalers
@@ -147,48 +148,38 @@ if __name__ == "__main__":
 
             print(f"\nChunck number {i+1} of {number_of_chucks}: ")
 
-            profiler = cProfile.Profile()
-            profiler.enable()
-
-            start = datetime.now()
-
             files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
             files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
-            num_BB = generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            complete_numb_BB.extend(num_BB)
-
-            profiler.disable()
-            stats = pstats.Stats(profiler).sort_stats('cumtime')
-            stats.print_stats(10)  # Print top 10 functions by cumulative time
+            start = datetime.now()
+            generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, True) # type: ignore
+            print(f"Time to generate combined grid maps: {datetime.now() - start}")
 
             # Info for lidar 1 about the number of bounding boxes
-            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
-            #print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
-            #print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
-            
+            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_1_GRID_NO_BB)
+            print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
+            print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+
             files_lidar_chunck = files_lidar_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_lidar_2) ) ] #type: ignore
             files_BB_chunck = files_BB_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_BB_2) ) ] #type: ignore
-            num_BB = generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            complete_numb_BB.extend(num_BB)
-
+            generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, True) # type: ignore
+            
             # Info for lidar 2 about the number of bounding boxes
-            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
-            #print(f"\nSum_chunck_lidar2: ", sum_ped, sum_bic, sum_car)
-            #print(f"Average_chunck_lidar2: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_2_GRID_NO_BB)
+            print(f"\nSum_chunck_lidar2: ", sum_ped, sum_bic, sum_car)
+            print(f"Average_chunck_lidar2: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
             files_lidar_chunck = files_lidar_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_lidar_3) ) ] #type: ignore
             files_BB_chunck = files_BB_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_BB_3) ) ] #type: ignore
-            num_BB = generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, True) # type: ignore
-            complete_numb_BB.extend(num_BB)
+            generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, True) # type: ignore
 
             # Info for lidar 3 about the number of bounding boxes
-            #sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
-            #print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
-            #print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_LIDAR_3_GRID_NO_BB)
+            print(f"\nSum_chunck_lidar3: ", sum_ped, sum_bic, sum_car)
+            print(f"Average_chunck_lidar3: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
 
             # Concatenate the lists in complete_grid_maps along the first dimension
             complete_grid_maps = np.array(complete_grid_maps)
-            print(f"complete grid map shape : {complete_grid_maps.shape}")
+            print(f"\ncomplete grid map shape : {complete_grid_maps.shape}")
 
             # Concatenate the lists in complete_grid_maps_BB along the first dimension
             complete_grid_maps_BB = np.array(complete_grid_maps_BB)
@@ -196,7 +187,64 @@ if __name__ == "__main__":
 
             complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
             complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
+
+            # Number of random samples you want to take
+            num_samples = int(complete_grid_maps.shape[0] * 0.1)
+
+            # Generate random indices
+            random_indices = np.random.choice(complete_grid_maps.shape[0], num_samples, replace=False)
+
+            # Select elements at the random indices
+            random_complete_grid_maps = complete_grid_maps[random_indices]
+            random_complete_grid_maps_BB = complete_grid_maps_BB[random_indices]
+            random_complete_numb_BB = [complete_numb_BB[i] for i in random_indices]
+
+            print(f"\nRandom complete grid maps shape: {random_complete_grid_maps.shape}")
+            print(f"Random complete grid maps BB shape: {random_complete_grid_maps_BB.shape}")
+            print(f"Random complete number of bounding boxes lenght : {len(random_complete_numb_BB)}")
             
+            augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB, j)
+
+            augmented_grid_maps = np.array(augmented_grid_maps)
+            augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
+
+            print(f"\nAugmented grid maps shape: {augmented_grid_maps.shape}")
+            print(f"Augmented grid maps BB shape: {augmented_grid_maps_BB.shape}")
+
+            '''
+            for i in range(num_samples):
+                print("point BB original:", random_complete_grid_maps_BB[i][0][0], random_complete_grid_maps_BB[i][399][0], random_complete_grid_maps_BB[i][0][399], random_complete_grid_maps_BB[i][399][399])
+                print("point BB augmented:", augmented_grid_maps_BB[i][0][0], augmented_grid_maps_BB[i][399][0], augmented_grid_maps_BB[i][0][399], augmented_grid_maps_BB[i][399][399])
+
+                print("point original:", random_complete_grid_maps[i][0][0], random_complete_grid_maps[i][399][0], random_complete_grid_maps[i][0][399], random_complete_grid_maps[i][399][399])
+                print("point augmented:", augmented_grid_maps[i][0][0], augmented_grid_maps[i][399][0], augmented_grid_maps[i][0][399], augmented_grid_maps[i][399][399])
+                fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+                ax[0, 0].imshow(random_complete_grid_maps[i], cmap='gray')
+                ax[0, 0].set_title('Original Grid Map')
+                
+                ax[0, 1].imshow(random_complete_grid_maps_BB[i], cmap='gray')
+                ax[0, 1].set_title('Original Grid Map BB')
+                
+                ax[1, 0].imshow(augmented_grid_maps[i], cmap='gray')
+                ax[1, 0].set_title(f'Augmented Grid Map')
+                
+                ax[1, 1].imshow(augmented_grid_maps_BB[i], cmap='gray')
+                ax[1, 1].set_title(f'Augmented Grid Map BB')
+        
+                plt.show()
+            '''
+
+            # Concatenate the lists in complete_grid_maps along the first dimension
+            complete_grid_maps = np.concatenate((complete_grid_maps, augmented_grid_maps), axis=0)
+            print(f"\nNeq complete grid map shape : {complete_grid_maps.shape}")
+            complete_grid_maps_BB = np.concatenate((complete_grid_maps_BB, augmented_grid_maps_BB), axis=0)
+            print(f"new complete grid map BB shape : {complete_grid_maps_BB.shape}")
+            complete_numb_BB.extend(random_complete_numb_BB)
+            print(f"new complete number of bounding boxes lenght : {len(complete_numb_BB)}")
+
+            del augmented_grid_maps, augmented_grid_maps_BB, random_complete_grid_maps, random_complete_grid_maps_BB, random_complete_numb_BB
+            gc.collect()
+
             # Shuffle the data
             combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB, complete_numb_BB))
             random.shuffle(combined_files)
@@ -204,13 +252,10 @@ if __name__ == "__main__":
             # Convert back to lists if needed
             complete_grid_maps = np.array(complete_grid_maps)
             complete_grid_maps_BB = np.array(complete_grid_maps_BB)
-            complete_numb_BB = list(complete_numb_BB)
+            complete_numb_BB = np.array(complete_numb_BB)
 
             del combined_files
             gc.collect()
-
-            augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(complete_grid_maps[0:100], complete_grid_maps_BB[0:100], j)
-            #TODO: finish the augmentation
 
             # Split the data
             X_train = complete_grid_maps[0:math.ceil((len(complete_grid_maps)*0.9))]
@@ -221,19 +266,15 @@ if __name__ == "__main__":
             complete_numb_BB_train = complete_numb_BB[0:math.ceil((len(complete_grid_maps)*0.9))]
             complete_numb_BB_val = complete_numb_BB[math.ceil((len(complete_grid_maps)*0.9)):len(complete_grid_maps)]
 
-            sum_ped, sum_bic, sum_car = 0, 0, 0
-            for k in range (len(complete_numb_BB_train)):
-                sum_ped += complete_numb_BB_train[k][0]
-                sum_bic += complete_numb_BB_train[k][1]
-                sum_car += complete_numb_BB_train[k][2]
+            sum_ped = np.sum(complete_numb_BB_train[:, 0])
+            sum_bic = np.sum(complete_numb_BB_train[:, 1])
+            sum_car = np.sum(complete_numb_BB_train[:, 2])
             print(f"\nSum_train: ", sum_ped, sum_bic, sum_car)
             print(f"Average_train: ", sum_ped/len(complete_numb_BB_train), sum_bic/len(complete_numb_BB_train), sum_car/len(complete_numb_BB_train))
 
-            sum_ped, sum_bic, sum_car = 0, 0, 0
-            for k in range (len(complete_numb_BB_val)):
-                sum_ped += complete_numb_BB_val[k][0]
-                sum_bic += complete_numb_BB_val[k][1]
-                sum_car += complete_numb_BB_val[k][2]
+            sum_ped = np.sum(complete_numb_BB_val[:, 0])
+            sum_bic = np.sum(complete_numb_BB_val[:, 1])
+            sum_car = np.sum(complete_numb_BB_val[:, 2])
             print(f"\nSum_val: ", sum_ped, sum_bic, sum_car)
             print(f"Average_val: ", sum_ped/len(complete_numb_BB_val), sum_bic/len(complete_numb_BB_val), sum_car/len(complete_numb_BB_val))
 
@@ -367,12 +408,13 @@ if __name__ == "__main__":
         
         complete_grid_maps = []
         complete_grid_maps_BB = []
+        complete_numb_BB = []
 
         print(f"\nTest chunck number {i+1} of {number_of_chucks_testset}: ")
 
         files_lidar_chunck = files_lidar_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_lidar_1) ) ] #type: ignore
         files_BB_chunck = files_BB_1[ i*file_for_chunck1 : min( (i+1)*file_for_chunck1, len(files_BB_1) ) ] #type: ignore
-        generate_combined_grid_maps(LIDAR_1_TEST, POSITION_1_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
+        generate_combined_grid_maps(LIDAR_1_TEST, POSITION_1_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, False) # type: ignore
 
         # Info for lidar 1 about the number of bounding boxes
         sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_1_TEST)
@@ -381,7 +423,7 @@ if __name__ == "__main__":
         
         files_lidar_chunck = files_lidar_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_lidar_2) ) ] #type: ignore
         files_BB_chunck = files_BB_2[ i*file_for_chunck2 : min( (i+1)*file_for_chunck2, len(files_BB_2) ) ] #type: ignore
-        generate_combined_grid_maps(LIDAR_2_TEST, POSITION_2_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
+        generate_combined_grid_maps(LIDAR_2_TEST, POSITION_2_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, False) # type: ignore
         
         # Info for lidar 2 about the number of bounding boxes
         sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_2_TEST)
@@ -390,7 +432,7 @@ if __name__ == "__main__":
 
         files_lidar_chunck = files_lidar_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_lidar_3) ) ] #type: ignore
         files_BB_chunck = files_BB_3[ i*file_for_chunck3 : min( (i+1)*file_for_chunck3, len(files_BB_3) ) ] #type: ignore
-        generate_combined_grid_maps(LIDAR_3_TEST, POSITION_3_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, False) # type: ignore
+        generate_combined_grid_maps(LIDAR_3_TEST, POSITION_3_TEST, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, False) # type: ignore
 
         # Info for lidar 1 about the number of bounding boxes
         sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, POSITION_3_TEST)
