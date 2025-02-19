@@ -186,7 +186,7 @@ if __name__ == "__main__":
             print(f"complete grid map BB shape : {complete_grid_maps_BB.shape}")
 
             complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
-            complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
+            #complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
 
             # Number of random samples you want to take
             num_samples = int(complete_grid_maps.shape[0] * 0.1)
@@ -455,7 +455,7 @@ if __name__ == "__main__":
         # Normalize the data
         complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
 
-        complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
+        #complete_grid_maps_BB = scaler_y.transform(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1])).reshape(complete_grid_maps_BB.shape)
 
         print("\nShape after transform: ",complete_grid_maps.shape, complete_grid_maps_BB.shape)
 

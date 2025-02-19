@@ -72,14 +72,14 @@ def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files,
         points_BB = load_points_grid_map_BB(complete_path_BB)
 
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
 
         cols, rows, heights = points.T
         grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(int)
 
         for i in range(len(points_BB)):
             vertices = np.array(points_BB[i])
-            height_BB = int(vertices[0, 2])  # Assuming all vertices have the same height
+            height_BB = 1  # Assuming all vertices have the same height
             fill_polygon(grid_map_recreate_BB, vertices, height_BB)
         
         if bool_value:
