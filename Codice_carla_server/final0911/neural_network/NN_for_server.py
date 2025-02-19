@@ -70,7 +70,7 @@ if __name__ == "__main__":
     early_stopping_triggered = False
     number_of_chucks= 1
     num_total_epochs = 1
-    num_epochs_for_each_chunck = 50
+    num_epochs_for_each_chunck = 20
     number_of_chucks_testset = 1
 
     # Load scalers
