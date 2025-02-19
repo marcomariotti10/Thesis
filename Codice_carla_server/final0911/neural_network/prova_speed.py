@@ -257,18 +257,23 @@ if __name__ == "__main__":
     
     gc.collect()
     
-    complete_grid_maps = []
-    complete_grid_maps_BB = []
-    complete_num_BB = []
+    number_of_chucks = NUMBER_OF_CHUNCKS
 
-    start = datetime.now()
-    # Load sensor1
-    generate_combined_grid_maps(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+    for i in range(number_of_chucks): #type: ignore
+            
+            print(f"\nChunck number {i+1} of {number_of_chucks}")
 
-    # Load sensor2
-    generate_combined_grid_maps(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+            complete_grid_maps = []
+            complete_grid_maps_BB = []
 
-    # Load sensor3
-    generate_combined_grid_maps(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, complete_grid_maps, complete_grid_maps_BB, complete_num_BB) # type: ignore
+            # Load the arrays
+            complete_grid_maps = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'))
+            complete_grid_maps_BB = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'))
 
-    print(f"Time taken to load data: {datetime.now() - start}")
+            # Visualize the original and augmented grid maps
+            for i in range(10):
+                fig, ax = plt.subplots(figsize=(10, 10))
+                ax.imshow(complete_grid_maps[200 + i], cmap='gray', alpha=0.5)
+                ax.imshow(complete_grid_maps_BB[200 + i], cmap='jet', alpha=0.5)
+                ax.set_title('Overlayed Grid Maps')
+                plt.show()
