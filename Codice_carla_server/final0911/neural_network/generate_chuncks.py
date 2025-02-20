@@ -186,6 +186,8 @@ if __name__ == '__main__':
         complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
         complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
 
+        print("shape after expand_dims: ", complete_grid_maps.shape, complete_grid_maps_BB.shape)
+
         # Save the arrays
         np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
         print(f"complete grid map {i} saved")

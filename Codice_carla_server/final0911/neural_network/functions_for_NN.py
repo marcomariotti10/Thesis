@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import csv
 import os
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from PIL import Image
 import sys
@@ -300,6 +301,9 @@ def apply_augmentation(grid_maps, grid_maps_BB):
     
     return augmented_grid_maps, augmented_grid_maps_BB
 
+def load_array(file_path):
+    return np.load(file_path)
+
 # Define the autoencoder model
 class Autoencoder(nn.Module):
     def __init__(self): # Constructor method for the autoencoder
@@ -368,3 +372,27 @@ class WeightedCustomLoss(nn.Module):
         # Apply weighting to the loss
         weighted_loss = loss * self.weight + self.mse_loss(predictions * (1 - mask), targets * (1 - mask))
         return weighted_loss
+    
+class LidarDataset(torch.utils.data.Dataset):
+    def __init__(self, grid_maps_dir, grid_maps_bb_dir, chunk_index):
+        self.grid_maps_dir = grid_maps_dir
+        self.grid_maps_bb_dir = grid_maps_bb_dir
+        self.chunk_index = chunk_index
+
+        # Load the entire chunk dataset
+        with ThreadPoolExecutor(max_workers=2) as executor:
+                self.grid_maps, self.grid_maps_bb = executor.map(load_array, [
+                    os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{chunk_index}.npy'),
+                    os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{chunk_index}.npy')
+                ])
+        print("shape of grid_maps", self.grid_maps.shape)
+        print("shape of grid_maps_bb", self.grid_maps_bb.shape)
+
+    def __len__(self):
+        return len(self.grid_maps)
+
+    def __getitem__(self, idx):
+        grid_map = self.grid_maps[idx]
+        grid_map_bb = self.grid_maps_bb[idx]
+        # Ensure the shape is [channels, height, width]
+        return torch.from_numpy(grid_map).float(), torch.from_numpy(grid_map_bb).float()

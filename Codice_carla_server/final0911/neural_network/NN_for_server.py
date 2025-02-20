@@ -31,26 +31,6 @@ from sklearn.preprocessing import MinMaxScaler
 from functions_for_NN import *
 from constants import *
 
-def load_array(file_path):
-    return np.load(file_path)
-
-class LidarDataset(torch.utils.data.Dataset):
-    def __init__(self, grid_maps_dir, grid_maps_bb_dir, indices):
-        self.grid_maps_dir = grid_maps_dir
-        self.grid_maps_bb_dir = grid_maps_bb_dir
-        self.indices = indices
-
-    def __len__(self):
-        return len(self.indices)
-
-    def __getitem__(self, idx):
-        grid_map_path = os.path.join(self.grid_maps_dir, f'complete_grid_maps_{self.indices[idx]}.npy')
-        grid_map_bb_path = os.path.join(self.grid_maps_bb_dir, f'complete_grid_maps_BB_{self.indices[idx]}.npy')
-        grid_map = np.load(grid_map_path)
-        grid_map_bb = np.load(grid_map_bb_path)
-        return torch.from_numpy(grid_map).float(), torch.from_numpy(grid_map_bb).float()
-
-
 if __name__ == "__main__":
     
     gc.collect()
@@ -112,6 +92,18 @@ if __name__ == "__main__":
             
             print(f"\nChunck number {i+1} of {number_of_chucks}")
 
+            indices = [i]  # Load only the current chunk
+
+            dataset = LidarDataset(CHUNCKS_DIR, CHUNCKS_DIR, i)
+            split_index = math.ceil(len(dataset) * 0.9)
+            dataset, val_dataset = random_split(dataset, [split_index, len(dataset) - split_index])
+            print("Lenght training and validation set:", len(dataset), len(val_dataset))
+
+            train_loader = DataLoader(dataset, batch_size=32, shuffle=True, pin_memory=True)
+            val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True, pin_memory=True)
+            print("\nData loaders created")
+
+            '''
             with ThreadPoolExecutor(max_workers=2) as executor:
                 complete_grid_maps, complete_grid_maps_BB = executor.map(load_array, [
                     os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'),
@@ -128,7 +120,7 @@ if __name__ == "__main__":
             gc.collect()
 
             print("\nDivision between train and val: ", complete_grid_maps.shape, X_val.shape, complete_grid_maps_BB.shape, y_val.shape)
-                
+            
             # Prepare data loaders
 
             train_loader = DataLoader(TensorDataset(torch.from_numpy(complete_grid_maps).float(), torch.from_numpy(complete_grid_maps_BB).float()), batch_size=32, shuffle=False, pin_memory=True)
@@ -137,6 +129,7 @@ if __name__ == "__main__":
             print("\nData loaders created")
             del complete_grid_maps, X_val, complete_grid_maps_BB, y_val
             gc.collect()
+            '''
 
             for epoch in range(num_epochs_for_each_chunck):
                 
