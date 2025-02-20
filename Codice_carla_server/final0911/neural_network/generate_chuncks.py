@@ -148,6 +148,44 @@ if __name__ == '__main__':
 
         complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
 
+        # Number of random samples you want to take
+        num_samples = int(complete_grid_maps.shape[0] * 0.2)
+
+        # Generate random indices
+        random_indices = np.random.choice(complete_grid_maps.shape[0], num_samples, replace=False)
+
+        # Select elements at the random indices
+        random_complete_grid_maps = complete_grid_maps[random_indices]
+        random_complete_grid_maps_BB = complete_grid_maps_BB[random_indices]
+
+        print(f"\nRandom complete grid maps shape: {random_complete_grid_maps.shape}")
+        print(f"Random complete grid maps BB shape: {random_complete_grid_maps_BB.shape}")
+        
+        augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB)
+
+        augmented_grid_maps = np.array(augmented_grid_maps)
+        augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
+
+        print(f"\nAugmented grid maps shape: {augmented_grid_maps.shape}")
+        print(f"Augmented grid maps BB shape: {augmented_grid_maps_BB.shape}")
+
+         # Concatenate the lists in complete_grid_maps along the first dimension
+        complete_grid_maps = np.concatenate((complete_grid_maps, augmented_grid_maps), axis=0)
+        print(f"\nNew complete grid map shape : {complete_grid_maps.shape}")
+        complete_grid_maps_BB = np.concatenate((complete_grid_maps_BB, augmented_grid_maps_BB), axis=0)
+        print(f"New complete grid map BB shape : {complete_grid_maps_BB.shape}")
+
+        del augmented_grid_maps, augmented_grid_maps_BB, random_complete_grid_maps, random_complete_grid_maps_BB
+        gc.collect()
+
+        indices = np.arange(complete_grid_maps.shape[0])
+        np.random.shuffle(indices)
+        complete_grid_maps = complete_grid_maps[indices]
+        complete_grid_maps_BB = complete_grid_maps_BB[indices]
+
+        complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
+        complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
+
         # Save the arrays
         np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
         print(f"complete grid map {i} saved")

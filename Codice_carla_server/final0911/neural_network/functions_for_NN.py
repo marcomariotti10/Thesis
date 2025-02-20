@@ -246,7 +246,7 @@ def slide_vertical(image, shift):
     shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     return shifted
 
-def apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB, j):
+def apply_augmentation(grid_maps, grid_maps_BB):
 
     augmentations = {
         'horizontal_flip': lambda img: cv2.flip(img, 1),
@@ -256,34 +256,47 @@ def apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB, 
         'slide_vertical': slide_vertical
     }
 
-    # Set the random seed for consistency
-    random.seed(SEED + j)
-
     augmented_grid_maps = []
     augmented_grid_maps_BB = []
-    
-    for i in range(random_complete_grid_maps.shape[0]):
-        grid_map = random_complete_grid_maps[i]
-        grid_map_BB = random_complete_grid_maps_BB[i]
-        
-        # Randomly select an augmentation
-        augmentation_name, augmentation = random.choice(list(augmentations.items()))
 
-        # Apply the same augmentation to both images
-        if augmentation_name == 'rotation':
-            angle = random.randint(-45, 45)
-            augmented_grid_map = augmentation(grid_map, angle)
-            augmented_grid_map_BB = augmentation(grid_map_BB, angle)
-        elif augmentation_name in ['slide_horizontal', 'slide_vertical']:
-            shift = random.randint(-100, 100)
-            augmented_grid_map = augmentation(grid_map, shift)
-            augmented_grid_map_BB = augmentation(grid_map_BB, shift)
-        else:
-            augmented_grid_map = augmentation(grid_map)
-            augmented_grid_map_BB = augmentation(grid_map_BB)
+    # Set the random seed for consistency
+    random.seed(SEED)
+    
+    for i in range(grid_maps.shape[0]):
+        grid_map = grid_maps[i]
+        grid_map_BB = grid_maps_BB[i]
         
-        augmented_grid_maps.append(augmented_grid_map)
-        augmented_grid_maps_BB.append(augmented_grid_map_BB)
+        applied_augmentations = set()
+        for j in range(2):
+            while True:
+                # Seleziona casualmente un'augmentation
+                augmentation_name, augmentation = random.choice(list(augmentations.items()))
+                if augmentation_name not in applied_augmentations:
+                    applied_augmentations.add(augmentation_name)
+                    break
+
+            # Applica la stessa augmentation a entrambe le immagini
+            if augmentation_name == 'rotation':
+                while True:
+                    angle = random.randint(-45, 45)
+                    if angle < -30 or angle > 30:
+                        break
+                grid_map = augmentation(grid_map, angle)
+                grid_map_BB = augmentation(grid_map_BB, angle)
+
+            elif augmentation_name in ['slide_horizontal', 'slide_vertical']:
+                while True:
+                    shift = random.randint(-100, 100)
+                    if shift < -50 or shift > 50:
+                        break
+                grid_map = augmentation(grid_map, shift)
+                grid_map_BB = augmentation(grid_map_BB, shift)
+            else:
+                grid_map = augmentation(grid_map)
+                grid_map_BB = augmentation(grid_map_BB)
+        
+        augmented_grid_maps.append(grid_map)
+        augmented_grid_maps_BB.append(grid_map_BB)
     
     return augmented_grid_maps, augmented_grid_maps_BB
 
