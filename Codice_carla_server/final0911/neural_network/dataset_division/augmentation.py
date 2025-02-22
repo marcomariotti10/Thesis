@@ -40,8 +40,10 @@ if __name__ == '__main__':
     from functions_for_NN import *
     from constants import *
 
-    number_of_chuncks = NUMBER_OF_CHUNCKS
-    number_of_chuncks_test = NUMBER_OF_CHUNCKS_TEST
+    if HOME[0] == 'C':
+        chunck_dir = '/mnt/c' + CHUNCKS_DIR[2:]
+    else:
+        chunck_dir = CHUNCKS_DIR
 
     gc.collect()
 
@@ -49,12 +51,15 @@ if __name__ == '__main__':
 
     random.seed(SEED)
 
-    os.makedirs(CHUNCKS_DIR, exist_ok=True)
+    os.makedirs(chunck_dir, exist_ok=True)
 
     for i in range (NUMBER_OF_CHUNCKS):
-
-        complete_grid_maps = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'))
-        complete_grid_maps_BB = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'))
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            complete_grid_maps , complete_grid_maps_BB = executor.map(load_array, [
+                os.path.join(chunck_dir, f'complete_grid_maps_{i}.npy'),
+                os.path.join(chunck_dir, f'complete_grid_maps_BB_{i}.npy')
+            ])
 
         # Number of random samples you want to take
         num_samples = int(complete_grid_maps.shape[0] * 0.2)
@@ -97,7 +102,7 @@ if __name__ == '__main__':
         print("shape after expand_dims: ", complete_grid_maps.shape, complete_grid_maps_BB.shape)
 
         # Save the arrays
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
+        np.save(os.path.join(chunck_dir, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
         print(f"complete grid map {i} saved")
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'), complete_grid_maps_BB)
+        np.save(os.path.join(chunck_dir, f'complete_grid_maps_BB_{i}.npy'), complete_grid_maps_BB)
         print(f"complete grid map BB {i} saved")

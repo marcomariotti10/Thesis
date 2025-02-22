@@ -30,8 +30,9 @@ import random
 import math
 import torchvision.transforms as transforms
 from sklearn.preprocessing import MinMaxScaler
-from functions_for_NN import *
-from constants import *
+
+# TO MUCH RAM CONSUPMTION
+
 
 def process_lidar_chunk(lidar_directory, position_directory, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, is_training):
     generate_combined_grid_maps(lidar_directory, position_directory, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, is_training) # type: ignore
@@ -43,7 +44,7 @@ def process_lidar_chunk(lidar_directory, position_directory, files_lidar_chunck,
 
     return complete_grid_maps, complete_grid_maps_BB
 
-class Dataset:
+class DatasetNPY(torch.utils.data.Dataset):   
     def __init__(self, files_lidar_1, files_BB_1, files_lidar_2, files_BB_2, files_lidar_3, files_BB_3, scaler_X, num_samples_ratio=0.2):
         self.files_lidar_1 = files_lidar_1
         self.files_BB_1 = files_BB_1
@@ -141,6 +142,15 @@ class Dataset:
 
 if __name__ == '__main__':
 
+    # Get the parent directory (one level up from the current script's directory)
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # Add the parent directory to sys.path
+    sys.path.append(parent_dir)
+
+    from functions_for_NN import *
+    from constants import *
+
     number_of_chuncks = NUMBER_OF_CHUNCKS
     number_of_chuncks_test = NUMBER_OF_CHUNCKS_TEST
 
@@ -225,7 +235,7 @@ if __name__ == '__main__':
 
         print(f"\nChunck number {i+1} of {number_of_chuncks}")
 
-        dataset = Dataset(files_lidar_1, files_BB_1, files_lidar_2, files_BB_2, files_lidar_3, files_BB_3, scaler_X, num_samples_ratio=0.2)
+        dataset = DatasetNPY(files_lidar_1, files_BB_1, files_lidar_2, files_BB_2, files_lidar_3, files_BB_3, scaler_X, num_samples_ratio=0.2)
 
         name = f"chunck_{i}.beton"  # Define the path where the dataset will be writtenù
 

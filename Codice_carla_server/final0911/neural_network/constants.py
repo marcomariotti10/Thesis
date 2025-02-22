@@ -1,4 +1,4 @@
-HOME = r'C:/Users/marco/Desktop/Tesi'   # <---- CHANGE THIS
+HOME = r'/mnt/c/Users/marco/Desktop/Tesi'   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'/data_map03_0911'
 
