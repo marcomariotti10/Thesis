@@ -76,7 +76,7 @@ def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files,
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
 
         cols, rows, heights = points.T
-        grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(int)
+        grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(float)
 
         for i in range(len(points_BB)):
             vertices = np.array(points_BB[i])

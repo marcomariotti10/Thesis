@@ -184,11 +184,6 @@ if __name__ == "__main__":
         complete_grid_maps_BB = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_test_{i}.npy'))
 
         print("\nShapes: ",complete_grid_maps.shape, complete_grid_maps_BB.shape)
-
-        complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
-        complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
-
-        print("New shape test:", complete_grid_maps.shape, complete_grid_maps_BB.shape)
             
         # Prepare data loaders
 

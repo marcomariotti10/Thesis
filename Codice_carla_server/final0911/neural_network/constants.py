@@ -46,6 +46,8 @@ MODEL_DIR = HOME_DIR + r'/models'
 
 CHUNCKS_DIR = HOME_DIR + r'/chuncks'    
 
+FFCV_DIR = HOME_DIR + r'/ffcv'
+
 # For Show_grid_map
 MIN_HEIGHT = -60.0
 
