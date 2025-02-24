@@ -164,10 +164,29 @@ if __name__ == '__main__':
         complete_grid_maps = complete_grid_maps[indices]
         complete_grid_maps_BB = complete_grid_maps_BB[indices]
 
+        # Split the data
+        split_index = math.ceil(len(complete_grid_maps) * 0.9)
+        X_val = complete_grid_maps[split_index:]
+        complete_grid_maps = complete_grid_maps[:split_index]
+        y_val = complete_grid_maps_BB[split_index:]
+        complete_grid_maps_BB = complete_grid_maps_BB[:split_index]
+
         complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
         complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
 
         print("shape after expand_dims: ", complete_grid_maps.shape, complete_grid_maps_BB.shape)
+
+        # Save the arrays
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
+        print(f"complete grid map train {i} saved")
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_train_{i}.npy'), complete_grid_maps_BB)
+        print(f"complete grid map BB train {i} saved")
+
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_val_{i}.npy'), X_val)
+        print(f"complete grid map train {i} saved")
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_val_{i}.npy'), y_val)
+        print(f"complete grid map BB train {i} saved")
+
         
         '''
 

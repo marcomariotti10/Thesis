@@ -2,7 +2,7 @@ HOME = r'/mnt/c/Users/marco/Desktop/Tesi'   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'/data_map03_0911'
 
-HOME_DIR = HOME + r'/Codice_carla/final0911' 
+HOME_DIR = HOME + r'/Codice_carla/final0911/Other' 
 
 LIDAR_1_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidar1/lidar'
 LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidar1_grid'

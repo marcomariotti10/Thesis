@@ -8,7 +8,9 @@ def start_preproces(script_name, user_input):
 if __name__ == "__main__":
     scripts = [
         "generate_chuncks.py",
-        "NN_for_server.py"
+        "augmentation.py",
+        "generate_ffcv.py",
+        "NN_for_server_ffcv.py",
     ]
 
     current_dir = os.path.dirname(__file__)

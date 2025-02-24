@@ -101,8 +101,24 @@ if __name__ == '__main__':
 
         print("shape after expand_dims: ", complete_grid_maps.shape, complete_grid_maps_BB.shape)
 
+        # Split the data
+        split_index = math.ceil(len(complete_grid_maps) * 0.9)
+        X_val = complete_grid_maps[split_index:]
+        complete_grid_maps = complete_grid_maps[:split_index]
+        y_val = complete_grid_maps_BB[split_index:]
+        complete_grid_maps_BB = complete_grid_maps_BB[:split_index]
+
+
         # Save the arrays
-        np.save(os.path.join(chunck_dir, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
-        print(f"complete grid map {i} saved")
-        np.save(os.path.join(chunck_dir, f'complete_grid_maps_BB_{i}.npy'), complete_grid_maps_BB)
-        print(f"complete grid map BB {i} saved")
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
+        print(f"complete grid map train {i} saved")
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_train_{i}.npy'), complete_grid_maps_BB)
+        print(f"complete grid map BB train {i} saved")
+
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_val_{i}.npy'), X_val)
+        print(f"complete grid map train {i} saved")
+        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_val_{i}.npy'), y_val)
+        print(f"complete grid map BB train {i} saved")
+
+        os.remove(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'))
+        os.remove(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'))
