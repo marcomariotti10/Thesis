@@ -40,25 +40,20 @@ if __name__ == '__main__':
     from functions_for_NN import *
     from constants import *
 
-    if HOME[0] == 'C':
-        chunck_dir = '/mnt/c' + CHUNCKS_DIR[2:]
-    else:
-        chunck_dir = CHUNCKS_DIR
-
     gc.collect()
 
     set_start_method("spawn", force=True)
 
     random.seed(SEED)
 
-    os.makedirs(chunck_dir, exist_ok=True)
+    os.makedirs(CHUNCKS_DIR, exist_ok=True)
 
     for i in range (NUMBER_OF_CHUNCKS):
         
         with ThreadPoolExecutor(max_workers=2) as executor:
             complete_grid_maps , complete_grid_maps_BB = executor.map(load_array, [
-                os.path.join(chunck_dir, f'complete_grid_maps_{i}.npy'),
-                os.path.join(chunck_dir, f'complete_grid_maps_BB_{i}.npy')
+                os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'),
+                os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy')
             ])
 
         # Number of random samples you want to take

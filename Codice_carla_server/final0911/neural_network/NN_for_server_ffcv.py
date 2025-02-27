@@ -66,7 +66,7 @@ if __name__ == "__main__":
     criterion = WeightedCustomLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
-    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
+    early_stopping = EarlyStopping(patience=10, min_delta=0.0001)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -96,8 +96,8 @@ if __name__ == "__main__":
     # Parameters for training
     early_stopping_triggered = False
     number_of_chucks= NUMBER_OF_CHUNCKS
-    num_total_epochs = 2
-    num_epochs_for_each_chunck = 5
+    num_total_epochs = 1
+    num_epochs_for_each_chunck = 500
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
 
     for j in range(num_total_epochs):

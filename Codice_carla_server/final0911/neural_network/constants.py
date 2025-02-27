@@ -42,11 +42,11 @@ CONFIG_DIR = HOME_DIR + r'/config'
 
 SCALER_DIR = HOME_DIR + r'/scalers'
 
-MODEL_DIR = HOME_DIR + r'/models'
+MODEL_DIR = HOME_DIR + r'/models_auto'
 
-CHUNCKS_DIR = HOME_DIR + r'/chuncks'    
+CHUNCKS_DIR = HOME_DIR + r'/chuncks_auto'    
 
-FFCV_DIR = HOME_DIR + r'/ffcv'
+FFCV_DIR = HOME_DIR + r'/ffcv_auto'
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0
@@ -78,5 +78,5 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
-NUMBER_OF_CHUNCKS = 3
-NUMBER_OF_CHUNCKS_TEST = 2
+NUMBER_OF_CHUNCKS = 1
+NUMBER_OF_CHUNCKS_TEST = 1
