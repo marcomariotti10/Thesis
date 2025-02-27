@@ -12,27 +12,13 @@ from torch.utils.data import DataLoader, TensorDataset
 from functions_for_NN import *
 from constants import *
 
-def visualize_prediction(prediction, ground_truth):
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    
-    # Reshape the prediction and ground truth if necessary
-    if prediction.ndim == 1:
-        prediction = prediction.reshape((20, 20))  # Adjust the shape as needed
-    if ground_truth.ndim == 1:
-        ground_truth = ground_truth.reshape((20, 20))  # Adjust the shape as needed
-
-    ax[0].imshow(prediction, cmap='gray')
-    ax[0].set_title('Prediction')
-    ax[1].imshow(ground_truth, cmap='gray')
-    ax[1].set_title('Ground Truth')
-    plt.show()
 
 def load_dataset(name,i,device):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
     complete_path_train = os.path.join(FFCV_DIR, name_train)
 
-    train_loader = Loader(complete_path_train, batch_size=64,
+    train_loader = Loader(complete_path_train, batch_size=32,
     num_workers=8, order=OrderOption.QUASI_RANDOM,
     os_cache=True,
     pipelines={
@@ -48,11 +34,11 @@ def load_dataset(name,i,device):
 
 if __name__ == '__main__':
 
-    number_of_chucks_testset = 1
+    number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
 
     # Load model
     model_path = MODEL_DIR
-    model_name = 'model_20250227_154907_loss_0.1083'
+    model_name = 'model_20250227_164908_loss_0.0273'
     model_name = model_name + '.pth'
     model_path = os.path.join(model_path, model_name)
     model = Autoencoder()

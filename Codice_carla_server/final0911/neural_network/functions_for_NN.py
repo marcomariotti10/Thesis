@@ -364,7 +364,7 @@ class WeightedCustomLoss(nn.Module):
 
     def forward(self, predictions, targets):
         from constants import FLOOR_HEIGHT
-        mask = (targets != FLOOR_HEIGHT).float()
+        mask = (targets != 0).float()
         masked_predictions = predictions * mask
         masked_targets = targets * mask
         loss = self.mse_loss(masked_predictions, masked_targets)
