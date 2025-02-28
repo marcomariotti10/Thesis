@@ -13,12 +13,12 @@ from functions_for_NN import *
 from constants import *
 
 
-def load_dataset(name,i,device):
+def load_dataset(name,i,device, batch):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
     complete_path_train = os.path.join(FFCV_DIR, name_train)
 
-    train_loader = Loader(complete_path_train, batch_size=32,
+    train_loader = Loader(complete_path_train, batch_size=batch,
     num_workers=8, order=OrderOption.QUASI_RANDOM,
     os_cache=True,
     pipelines={
@@ -31,6 +31,27 @@ def load_dataset(name,i,device):
     })
 
     return train_loader
+
+def visualize_prediction(pred, gt, map):
+    """
+    Visualize the grid map and the prediction.
+    
+    Parameters:
+    - grid_map: numpy array of shape (400, 400)
+    - prediction: numpy array of shape (400, 400)
+    """
+    fig, ax = plt.subplots(1, 2, figsize=(10, 10))
+    ax[0].imshow(map, cmap='gray', alpha=0.5)
+    ax[0].imshow(pred, cmap='jet', alpha=0.5)
+    ax[0].set_title('Overlay of Original and Prediction Grid Maps')
+
+    ax[1].imshow(map, cmap='gray', alpha=0.5)
+    ax[1].imshow(gt, cmap='jet', alpha=0.5)
+    ax[1].set_title('Overlay of Original and Ground Truth Grid Maps')
+    plt.show()
+    
+    plt.show()
+
 
 if __name__ == '__main__':
 
@@ -72,48 +93,36 @@ if __name__ == '__main__':
         
         print(f"\nChunck number {i+1} of {number_of_chucks_testset}")
         
-        test_loader = load_dataset('test', i, device)
+        test_loader = load_dataset('test', i, device, 1)
 
-        print("\nLenght of the datasets:", len(test_loader))
-
-        grid_maps = []
-        vertices = []
-        
-        # Assuming data is a tuple of 64 elements
-        for data in test_loader:
-            print("Data structure:", type(data), len(data))
-            for idx, d in enumerate(data):
-                print(f"Element {idx} shape:", d.shape)
-
-            # Separate covariate and label data
-            covariate_data = data[0].cpu().numpy()
-            label_data = data[1].cpu().numpy()
-
-            # Stack covariate and label data separately
-            grid_maps.append(covariate_data)
-            vertices.append(label_data)
-
-            # Now covariate_data and label_data are numpy arrays containing all the elements
-            print("Covariate data shape:", covariate_data.shape)
-            print("Label data shape:", label_data.shape)
-        
-        grid_maps = np.concatenate(grid_maps, axis=0)
-        vertices = np.concatenate(vertices, axis=0)
-
-        print("Grid Maps Shape:", grid_maps.shape)
-        print("Vertices Shape:", vertices.shape)
+        print("\nLenght of the datasets:", len(test_loader))        
         
         # Make predictions
         with torch.no_grad():
             for data in test_loader:
-                inputs, _ = data
+                predictions = []
+                grid_maps = []
+                vertices = []
+                inputs, target = data
                 outputs = model(inputs)
                 predictions.append(outputs)
-        predictions = torch.cat(predictions).cpu().numpy()
-        print("Predictions Shape:", predictions.shape)
+                predictions = torch.cat(predictions).cpu().numpy()
+                print("Predictions Shape:", predictions.shape)
+                
+                grid_maps = data[0].cpu().numpy()
+                vertices = data[1].cpu().numpy()
 
-    # Concatenate predictions
-    #predictions = np.concatenate(predictions, axis=0)
+                # Now covariate_data and label_data are numpy arrays containing all the elements
+                print("Covariate data shape:", grid_maps.shape)
+                print("Label data shape:", vertices.shape)
+
+                grid_maps = grid_maps.reshape(-1, 400, 400)
+                predictions = predictions.reshape(-1, 400, 400)
+                vertices = vertices.reshape(-1, 400, 400)
+                
+                for i in range(len(grid_maps)):
+                    visualize_prediction(predictions[i], vertices[i], grid_maps[i])
+
 
 
     for i in range(predictions.shape[0]):

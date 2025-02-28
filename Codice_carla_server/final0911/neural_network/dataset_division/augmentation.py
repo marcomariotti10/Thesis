@@ -56,6 +56,7 @@ if __name__ == '__main__':
                 os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy')
             ])
 
+
         # Number of random samples you want to take
         num_samples = int(complete_grid_maps.shape[0] * 0.2)
 
@@ -85,6 +86,7 @@ if __name__ == '__main__':
 
         del augmented_grid_maps, augmented_grid_maps_BB, random_complete_grid_maps, random_complete_grid_maps_BB
         gc.collect()
+        
 
         indices = np.arange(complete_grid_maps.shape[0])
         np.random.shuffle(indices)
@@ -102,7 +104,6 @@ if __name__ == '__main__':
         complete_grid_maps = complete_grid_maps[:split_index]
         y_val = complete_grid_maps_BB[split_index:]
         complete_grid_maps_BB = complete_grid_maps_BB[:split_index]
-
 
         # Save the arrays
         np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
