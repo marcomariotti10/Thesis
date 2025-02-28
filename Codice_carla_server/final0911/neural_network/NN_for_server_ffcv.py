@@ -99,7 +99,7 @@ if __name__ == "__main__":
     early_stopping_triggered = False
     number_of_chucks= NUMBER_OF_CHUNCKS
     num_total_epochs = 50
-    num_epochs_for_each_chunck = 5
+    num_epochs_for_each_chunck = 3
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
 
     for j in range(num_total_epochs):
@@ -154,11 +154,15 @@ if __name__ == "__main__":
                 scheduler.step(val_loss)
                 print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
 
-                early_stopping(val_loss)
-                if early_stopping.early_stop:
-                    print("Early stopping triggered")
-                    early_stopping_triggered = True
-                    break
+                if j >= 2:
+                    early_stopping(val_loss)
+                    if early_stopping.early_stop:
+                        print("Early stopping triggered")
+                        early_stopping_triggered = True
+                        break
+                else:
+                    print("too early to stop")
+                
                 print(f"Time to move data to GPU: {datetime.now() - start}")
 
     print("\n-------------------------------------------")
