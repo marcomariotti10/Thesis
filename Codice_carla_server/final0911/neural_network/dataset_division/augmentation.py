@@ -46,14 +46,16 @@ if __name__ == '__main__':
 
     random.seed(SEED)
 
-    os.makedirs(CHUNCKS_DIR, exist_ok=True)
+    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+
+    os.makedirs(complete_name_chunck_path, exist_ok=True)
 
     for i in range (NUMBER_OF_CHUNCKS):
         
         with ThreadPoolExecutor(max_workers=2) as executor:
             complete_grid_maps , complete_grid_maps_BB = executor.map(load_array, [
-                os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'),
-                os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy')
+                os.path.join(complete_name_chunck_path, f'complete_grid_maps_{i}.npy'),
+                os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{i}.npy')
             ])
 
 
@@ -106,15 +108,15 @@ if __name__ == '__main__':
         complete_grid_maps_BB = complete_grid_maps_BB[:split_index]
 
         # Save the arrays
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
         print(f"complete grid map train {i} saved")
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_train_{i}.npy'), complete_grid_maps_BB)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_train_{i}.npy'), complete_grid_maps_BB)
         print(f"complete grid map BB train {i} saved")
 
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_val_{i}.npy'), X_val)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_val_{i}.npy'), X_val)
         print(f"complete grid map train {i} saved")
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_val_{i}.npy'), y_val)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_val_{i}.npy'), y_val)
         print(f"complete grid map BB train {i} saved")
 
-        os.remove(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'))
-        os.remove(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'))
+        os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{i}.npy'))
+        os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{i}.npy'))

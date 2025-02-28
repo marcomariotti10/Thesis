@@ -78,5 +78,5 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
-NUMBER_OF_CHUNCKS = 1
-NUMBER_OF_CHUNCKS_TEST = 1
+NUMBER_OF_CHUNCKS = 3
+NUMBER_OF_CHUNCKS_TEST = 2

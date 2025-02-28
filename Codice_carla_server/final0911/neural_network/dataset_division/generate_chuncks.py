@@ -60,7 +60,9 @@ if __name__ == '__main__':
 
     random.seed(SEED)
 
-    os.makedirs(CHUNCKS_DIR, exist_ok=True)
+    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{number_of_chuncks}_{number_of_chuncks_test}')
+
+    os.makedirs(complete_name_chunck_path, exist_ok=True)
 
     # Load scalers
     with open(os.path.join(SCALER_DIR, 'scaler_X.pkl'), 'rb') as f:
@@ -191,9 +193,9 @@ if __name__ == '__main__':
         '''
 
         # Save the arrays
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{i}.npy'), complete_grid_maps)
         print(f"complete grid map {i} saved")
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_{i}.npy'), complete_grid_maps_BB)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{i}.npy'), complete_grid_maps_BB)
         print(f"complete grid map BB {i} saved")
 
         
@@ -292,8 +294,8 @@ if __name__ == '__main__':
         complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
 
         # Save the arrays
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_test_{i}.npy'), complete_grid_maps)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_test_{i}.npy'), complete_grid_maps)
         print(f"complete grid map test {i} saved")
-        np.save(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_test_{i}.npy'), complete_grid_maps_BB)
+        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_test_{i}.npy'), complete_grid_maps_BB)
         print(f"complete grid map BB test {i} saved")
     

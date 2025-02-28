@@ -16,7 +16,8 @@ from constants import *
 def load_dataset(name,i,device, batch):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
-    complete_path_train = os.path.join(FFCV_DIR, name_train)
+    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
 
     train_loader = Loader(complete_path_train, batch_size=batch,
     num_workers=8, order=OrderOption.QUASI_RANDOM,
@@ -59,7 +60,7 @@ if __name__ == '__main__':
 
     # Load model
     model_path = MODEL_DIR
-    model_name = 'model_20250227_164908_loss_0.0273'
+    model_name = 'model_20250228_160808_loss_0.0272'
     model_name = model_name + '.pth'
     model_path = os.path.join(model_path, model_name)
     model = Autoencoder()
