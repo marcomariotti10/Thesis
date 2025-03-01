@@ -58,16 +58,6 @@ if __name__ == '__main__':
 
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
 
-    # Load model
-    model_path = MODEL_DIR
-    model_name = 'model_20250228_160808_loss_0.0272'
-    model_name = model_name + '.pth'
-    model_path = os.path.join(model_path, model_name)
-    model = Autoencoder()
-    model.load_state_dict(torch.load(model_path))
-    criterion = WeightedCustomLoss()
-    model.eval()
-
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
     print(f"CUDA version: {torch.version.cuda}")
@@ -78,6 +68,18 @@ if __name__ == '__main__':
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
+    # Load model
+    model_path = MODEL_DIR
+    model_name = 'model_20250228_202856_loss_0.0067'
+    model_name = model_name + '.pth'
+    model_path = os.path.join(model_path, model_name)
+    model = Autoencoder()
+
+    # Check for multiple GPUs
+    if torch.cuda.device_count() > 1:
+        print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+        model = nn.DataParallel(model)
+    
     if torch.cuda.is_available():
         device = torch.device("cuda")
         model = model.to(device)
@@ -86,7 +88,15 @@ if __name__ == '__main__':
         device = torch.device("cpu")
         print("CUDA is not available. Using CPU.")
 
-    summary(model, (1, 400, 400))
+    checkpoint = torch.load(model_path, map_location=device)
+    model.load_state_dict(checkpoint)
+    
+    if isinstance(model, nn.DataParallel):
+        summary(model.module, (1, 400, 400))
+    else:
+        summary(model, (1, 400, 400))
+    
+    model.eval()
 
     predictions = []
    
@@ -105,6 +115,7 @@ if __name__ == '__main__':
                 grid_maps = []
                 vertices = []
                 inputs, target = data
+                target = target.float()
                 outputs = model(inputs)
                 predictions.append(outputs)
                 predictions = torch.cat(predictions).cpu().numpy()

@@ -26,36 +26,10 @@ import pickle
 from datetime import datetime
 import random
 import math
-from ffcv.loader import Loader, OrderOption
-from ffcv.fields.decoders import NDArrayDecoder
-from ffcv.transforms import ToTensor, Squeeze, ToDevice, ToTorchImage, View
+import torchvision.transforms as transforms
 from sklearn.preprocessing import MinMaxScaler
 from functions_for_NN import *
 from constants import *
-from ffcv.reader import Reader
-import torch.nn.functional as F
-
-
-def load_dataset(name,i,device):
-    
-    name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
-    complete_name_chunck_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
-    
-    complete_path_train = os.path.join(complete_name_chunck_path, name_train)
-
-    train_loader = Loader(complete_path_train, batch_size=32,
-    num_workers=8, order=OrderOption.QUASI_RANDOM,
-    os_cache=False,
-    pipelines={
-        'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
-                    ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                    ToDevice(device, non_blocking=True)],
-        'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
-                ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                ToDevice(device, non_blocking=True)]
-    })
-
-    return train_loader
 
 if __name__ == "__main__":
     
@@ -66,10 +40,10 @@ if __name__ == "__main__":
     # Model creation
     model = Autoencoder()
     model.apply(weights_init)
-    criterion = torch.nn.BCEWithLogitsLoss()
+    criterion = WeightedCustomLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
-    early_stopping = EarlyStopping(patience=10, min_delta=0.0001)
+    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -94,16 +68,13 @@ if __name__ == "__main__":
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
-    if isinstance(model, nn.DataParallel):
-        summary(model.module, (1, 400, 400))
-    else:
-        summary(model, (1, 400, 400))
+    summary(model, (1, 400, 400))
 
     # Parameters for training
     early_stopping_triggered = False
     number_of_chucks= NUMBER_OF_CHUNCKS
-    num_total_epochs = 50
-    num_epochs_for_each_chunck = 3
+    num_total_epochs = 2
+    num_epochs_for_each_chunck = 5
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
 
     for j in range(num_total_epochs):
@@ -121,23 +92,26 @@ if __name__ == "__main__":
             
             print(f"\nChunck number {i+1} of {number_of_chucks}")
 
-            name_train = f"dataset_train{i}.beton"  # Define the path where the dataset will be written
-            complete_path_train = os.path.join(FFCV_DIR, name_train)
+            indices = [i]  # Load only the current chunk
 
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                train_loader, val_loader = executor.map(load_dataset, ['train', 'val'], [i, i], [device, device])
+            dataset = LidarDataset(CHUNCKS_DIR, CHUNCKS_DIR, i)
+            split_index = math.ceil(len(dataset) * 0.9)
+            dataset, val_dataset = random_split(dataset, [split_index, len(dataset) - split_index])
+            print("Lenght training and validation set:", len(dataset), len(val_dataset))
 
-            print("\nLenght of the datasets:", len(train_loader), len(val_loader))
-
+            train_loader = DataLoader(dataset, batch_size=32, shuffle=True, pin_memory=True)
+            val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True, pin_memory=True)
+            print("\nData loaders created")
 
             for epoch in range(num_epochs_for_each_chunck):
                 
                 start = datetime.now()
+
                 model.train()
                 train_loss = 0
                 for data in train_loader:
                     inputs, targets = data
-                    targets = targets.float()
+                    inputs, targets = inputs.to(device, non_blocking = True), targets.to(device)
                     optimizer.zero_grad()
                     outputs = model(inputs)
                     loss = criterion(outputs, targets)
@@ -151,7 +125,7 @@ if __name__ == "__main__":
                 with torch.no_grad():
                     for data in val_loader:
                         inputs, targets = data
-                        targets = targets.float()
+                        inputs, targets = inputs.to(device, non_blocking = True), targets.to(device)
                         outputs = model(inputs)
                         loss = criterion(outputs, targets)
                         val_loss += loss.item()
@@ -159,18 +133,15 @@ if __name__ == "__main__":
 
                 scheduler.step(val_loss)
                 print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+                torch.cuda.empty_cache()
 
-                if j >= 2:
-                    early_stopping(val_loss)
-                    if early_stopping.early_stop:
-                        print("Early stopping triggered")
-                        early_stopping_triggered = True
-                        break
-                else:
-                    print("too early to stop")
-                
+                early_stopping(val_loss)
+                if early_stopping.early_stop:
+                    print("Early stopping triggered")
+                    early_stopping_triggered = True
+                    break
+
                 print(f"Time to move data to GPU: {datetime.now() - start}")
-
     print("\n-------------------------------------------")
     print("Training completed")
     print("-------------------------------------------\n") 
@@ -184,13 +155,17 @@ if __name__ == "__main__":
 
         print(f"\nTest chunck number {i+1} of {number_of_chucks_testset}: ")
 
-        name_test = f"dataset_test{i}.beton"  # Define the path where the dataset will be written
-        complete_path_train = os.path.join(FFCV_DIR, name_test)
+        # Load the arrays
+        complete_grid_maps = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_test_{i}.npy'))
+        complete_grid_maps_BB = np.load(os.path.join(CHUNCKS_DIR, f'complete_grid_maps_BB_test_{i}.npy'))
 
-        test_loader = load_dataset('test', i, device)
+        print("\nShapes: ",complete_grid_maps.shape, complete_grid_maps_BB.shape)
+            
+        # Prepare data loaders
 
-        print("\nLenght test dataset: ", len(test_loader))
+        test_loader = DataLoader(TensorDataset(torch.from_numpy(complete_grid_maps).float(), torch.from_numpy(complete_grid_maps_BB).float()), batch_size=32, shuffle=False, pin_memory=True)
 
+        print("\nTest loader created")
         gc.collect()
 
         # Evaluate on test set
@@ -199,7 +174,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets.float()
+                inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
                 test_loss += loss.item()
@@ -209,7 +184,6 @@ if __name__ == "__main__":
         test_losses.append(test_loss)
 
     total_loss = sum(test_losses) / len(test_losses)
-    print("\nTotal loss:", total_loss)
 
     # Define the directory where you want to save the model
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -219,4 +193,4 @@ if __name__ == "__main__":
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
     torch.save(model.state_dict(), model_save_path)
-    print(f'Model saved : {model_name}')
+    print(f'Model saved')
