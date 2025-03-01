@@ -333,8 +333,8 @@ class Autoencoder(nn.Module):
         )
 
     def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x)
-        x = self.decoder(x)
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
         return x
 
 class EarlyStopping:
