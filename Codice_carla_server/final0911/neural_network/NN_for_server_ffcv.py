@@ -28,7 +28,7 @@ import random
 import math
 from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
-from ffcv.transforms import ToTensor, Squeeze, ToDevice, ToTorchImage, View
+from ffcv.transforms import ToTensor, Squeeze, ToDevice, ToTorchImage, RandomHorizontalFlip
 from sklearn.preprocessing import MinMaxScaler
 from functions_for_NN import *
 from constants import *
@@ -44,13 +44,15 @@ def load_dataset(name,i,device):
     complete_path_train = os.path.join(complete_name_chunck_path, name_train)
 
     train_loader = Loader(complete_path_train, batch_size=32,
-    num_workers=8, order=OrderOption.QUASI_RANDOM,
+    num_workers=8, order=OrderOption.QUASI_RANDOM, drop_last=True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
+                    RandomHorizontalFlip(0.3),
                     ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                     ToDevice(device, non_blocking=True)],
         'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
+                RandomHorizontalFlip(0.3),
                 ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                 ToDevice(device, non_blocking=True)]
     })

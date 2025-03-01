@@ -10,7 +10,7 @@ from datetime import datetime
 import gc
 from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
-from ffcv.transforms import ToTensor, ToDevice
+from ffcv.transforms import ToTensor, ToDevice, RandomHorizontalFlip
 from functions_for_NN import *
 from constants import *
 import torch.distributed as dist
@@ -30,13 +30,15 @@ def load_dataset(name, i, device, rank, world_size):
     #print(f"Loading dataset from {complete_path_train}")
 
     dataset = Loader(complete_path_train, batch_size=32,
-                     num_workers=8, order=OrderOption.SEQUENTIAL, distributed=True, seed=SEED,
+                     num_workers=8, order=OrderOption.SEQUENTIAL, distributed=True, seed=SEED, drop_last=True,
                      os_cache=False,
                      pipelines={
                          'covariate': [NDArrayDecoder(),  # Decodes raw NumPy arrays
+                                       RandomHorizontalFlip(0.3),
                                        ToTensor(),  # Converts to PyTorch Tensor (1,400,400)
                                        ToDevice(device, non_blocking=True)],
                          'label': [NDArrayDecoder(),  # Decodes raw NumPy arrays
+                                   RandomHorizontalFlip(0.3),
                                    ToTensor(),  # Converts to PyTorch Tensor (1,400,400)
                                    ToDevice(device, non_blocking=True)]
                      })
@@ -109,6 +111,7 @@ def main(rank, world_size):
                     optimizer.zero_grad()
                     outputs = model(inputs)
                     loss = criterion(outputs, targets)
+                    loss.backward()
                     optimizer.step()
                     train_loss += loss.item()
                 train_loss /= len(train_loader)
