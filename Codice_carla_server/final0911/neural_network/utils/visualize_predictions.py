@@ -4,14 +4,80 @@ import os
 import math
 import pickle
 import matplotlib.pyplot as plt
+import torch.nn as nn
+import sys
 from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 from concurrent.futures import ThreadPoolExecutor
 from torch.utils.data import DataLoader, TensorDataset
-from functions_for_NN import *
-from constants import *
 
+
+class Autoencoder_classic(nn.Module):
+    def __init__(self): # Constructor method for the autoencoder
+        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2)
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
+        return x
+
+class Autoencoder_big(nn.Module):
+    def __init__(self): # Constructor method for the autoencoder
+        super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2)
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
+        return x
 
 def load_dataset(name,i,device, batch):
     
@@ -53,10 +119,8 @@ def visualize_prediction(pred, gt, map):
     
     plt.show()
 
-
-if __name__ == '__main__':
-
-    number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
+def model_preparation(model_name):
+    
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -70,16 +134,11 @@ if __name__ == '__main__':
 
     # Load model
     model_path = MODEL_DIR
-    model_name = 'model_20250228_202856_loss_0.0067'
     model_name = model_name + '.pth'
     model_path = os.path.join(model_path, model_name)
-    model = Autoencoder()
-
-    # Check for multiple GPUs
-    if torch.cuda.device_count() > 1:
-        print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
-        model = nn.DataParallel(model)
     
+    model = Autoencoder_big()
+        
     if torch.cuda.is_available():
         device = torch.device("cuda")
         model = model.to(device)
@@ -89,20 +148,68 @@ if __name__ == '__main__':
         print("CUDA is not available. Using CPU.")
 
     checkpoint = torch.load(model_path, map_location=device)
-    model.load_state_dict(checkpoint)
-    
-    if isinstance(model, nn.DataParallel):
-        summary(model.module, (1, 400, 400))
-    else:
-        summary(model, (1, 400, 400))
+
+    # Remove 'module.' prefix from the state dict keys if it's there
+    state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
+
+    # Create a new state dict without the "module." prefix
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        new_key = key.replace('module.', '')  # Remove 'module.' prefix
+        new_state_dict[new_key] = value
+
+    # Now load the cleaned state dict into your model
+    model.load_state_dict(new_state_dict)
+
+    summary(model, (1, 400, 400))
     
     model.eval()
 
-    predictions = []
-   
-    for i in range(number_of_chucks_testset): #type: ignore
+    return model, device
+
+
+def evaluate(model, device):
+    
+    test_losses = []
+    
+    criterion = torch.nn.BCEWithLogitsLoss()
+
+    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
+
+        print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
+
+        test_loader = load_dataset('test', i, device, 32)
+
+        print("\nLenght test dataset: ", len(test_loader))
+
+        gc.collect()
+
+        # Evaluate on test set
+        model.eval()
+        test_loss = 0
+        with torch.no_grad():
+            for data in test_loader:
+                inputs, targets = data
+                targets = targets.float()
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                test_loss += loss.item()
+        test_loss /= len(test_loader)
+        print(f'Test Loss: {test_loss:.4f}')
+
+        test_losses.append(test_loss)
+
+    total_loss = sum(test_losses) / len(test_losses)
+    print("\nTotal loss:", total_loss)
+
+
+def show_predictions(model, device):
+    
+    sigmoid = torch.nn.Sigmoid()
+
+    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
         
-        print(f"\nChunck number {i+1} of {number_of_chucks_testset}")
+        print(f"\nChunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}")
         
         test_loader = load_dataset('test', i, device, 1)
 
@@ -117,6 +224,7 @@ if __name__ == '__main__':
                 inputs, target = data
                 target = target.float()
                 outputs = model(inputs)
+                outputs = sigmoid(outputs)
                 predictions.append(outputs)
                 predictions = torch.cat(predictions).cpu().numpy()
                 print("Predictions Shape:", predictions.shape)
@@ -125,8 +233,8 @@ if __name__ == '__main__':
                 vertices = data[1].cpu().numpy()
 
                 # Now covariate_data and label_data are numpy arrays containing all the elements
-                print("Covariate data shape:", grid_maps.shape)
-                print("Label data shape:", vertices.shape)
+                #print("Covariate data shape:", grid_maps.shape)
+                #print("Label data shape:", vertices.shape)
 
                 grid_maps = grid_maps.reshape(-1, 400, 400)
                 predictions = predictions.reshape(-1, 400, 400)
@@ -137,21 +245,21 @@ if __name__ == '__main__':
 
 
 
-    for i in range(predictions.shape[0]):
-        
-        pred = predictions[i].squeeze()
-        gt = vertices[i].squeeze()
-        map = grid_maps[i].squeeze()
+if __name__ == '__main__':
 
-        print("\nShapes:", pred.shape, gt.shape, map.shape)
-      
-        fig, ax = plt.subplots(1, 2, figsize=(10, 10))
-        ax[0].imshow(map, cmap='gray', alpha=0.5)
-        ax[0].imshow(pred, cmap='jet', alpha=0.5)
-        ax[0].set_title('Overlay of Original and Prediction Grid Maps')
+    # Get the parent directory (one level up from the current script's directory)
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-        ax[1].imshow(map, cmap='gray', alpha=0.5)
-        ax[1].imshow(gt, cmap='jet', alpha=0.5)
-        ax[1].set_title('Overlay of Original and Ground Truth Grid Maps')
-        plt.show()
+    # Add the parent directory to sys.path
+    sys.path.append(parent_dir)
 
+    from functions_for_NN import *
+    from constants import *
+
+    model_name = 'model_20250303_015149_loss_0.0016'
+    
+    model, device = model_preparation(model_name)
+
+    evaluate(model, device)
+
+    show_predictions(model, device)

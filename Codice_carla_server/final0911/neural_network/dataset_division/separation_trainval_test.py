@@ -1,4 +1,4 @@
-from constants import *
+import sys
 import os
 import csv
 import shutil
@@ -7,7 +7,6 @@ import random
 import math
 from sklearn.model_selection import train_test_split
 from multiprocessing import Pool, set_start_method
-from functions_for_NN import number_of_BB
 
 def cut_files(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_BB_path):
     """
@@ -68,6 +67,15 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_fin
     move_file(files_lidar_test, files_BB_test, lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_final) #type: ignore
 
 if __name__=="__main__":
+
+    # Get the parent directory (one level up from the current script's directory)
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # Add the parent directory to sys.path
+    sys.path.append(parent_dir)
+
+    from functions_for_NN import *
+    from constants import *
 
     print("Lidar1")
     main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, LIDAR_1_TEST, POSITION_1_TEST)

@@ -34,6 +34,8 @@ from functions_for_NN import *
 from constants import *
 from ffcv.reader import Reader
 import torch.nn.functional as F
+import torch.distributed as dist
+
 
 
 def load_dataset(name,i,device):
@@ -43,8 +45,8 @@ def load_dataset(name,i,device):
     
     complete_path_train = os.path.join(complete_name_chunck_path, name_train)
 
-    train_loader = Loader(complete_path_train, batch_size=32,
-    num_workers=8, order=OrderOption.QUASI_RANDOM, drop_last=True,
+    train_loader = Loader(complete_path_train, batch_size=16,
+    num_workers=8, order=OrderOption.RANDOM, distributed = True, seed = SEED, drop_last=True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
@@ -60,6 +62,19 @@ def load_dataset(name,i,device):
     return train_loader
 
 if __name__ == "__main__":
+
+    
+    # Set environment variables for distributed training
+    os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
+    os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)
+
+    # Set other environment variables for single-node multi-GPU setup
+    os.environ['RANK'] = '0'       # Process rank (0 for single process)
+    os.environ['WORLD_SIZE'] = '1'  # Total number of processes
+    os.environ['LOCAL_RANK'] = '0'  # Local rank for single-GPU (0 for single GPU)
+
+    # Initialize the distributed process group
+    dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
     
     gc.collect()
 
@@ -122,9 +137,6 @@ if __name__ == "__main__":
                 break
             
             print(f"\nChunck number {i+1} of {number_of_chucks}")
-
-            name_train = f"dataset_train{i}.beton"  # Define the path where the dataset will be written
-            complete_path_train = os.path.join(FFCV_DIR, name_train)
 
             with ThreadPoolExecutor(max_workers=2) as executor:
                 train_loader, val_loader = executor.map(load_dataset, ['train', 'val'], [i, i], [device, device])

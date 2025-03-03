@@ -58,7 +58,7 @@ if __name__ == '__main__':
                 os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{i}.npy')
             ])
 
-
+        
         # Number of random samples you want to take
         num_samples = int(complete_grid_maps.shape[0] * 0.2)
 
@@ -94,6 +94,7 @@ if __name__ == '__main__':
         np.random.shuffle(indices)
         complete_grid_maps = complete_grid_maps[indices]
         complete_grid_maps_BB = complete_grid_maps_BB[indices]
+        
 
         complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
         complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)

@@ -8,7 +8,7 @@ import torch
 
 
 def load_dataset(name, i, device):
-    name_train = f"dataset_train0.beton"  # Define the path where the dataset will be written
+    name_train = f"dataset_train1.beton"  # Define the path where the dataset will be written
     
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
@@ -18,11 +18,11 @@ def load_dataset(name, i, device):
                           os_cache=True,
                           pipelines={
                               'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
-                                            RandomHorizontalFlip(0.3),
+                                            RandomHorizontalFlip(1),
                                             ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                                             ToDevice(device, non_blocking=True)],
                               'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
-                                        RandomHorizontalFlip(0.3),
+                                        RandomHorizontalFlip(1),
                                         ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                                         ToDevice(device, non_blocking=True)]
                           })

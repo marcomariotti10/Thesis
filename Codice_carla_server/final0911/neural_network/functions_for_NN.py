@@ -134,24 +134,6 @@ def weights_init(m):
         if m.bias is not None:
             init.constant_(m.bias, 0)
 
-def visualize_prediction(prediction, real):
-    """
-    Visualize the grid map and the prediction.
-    
-    Parameters:
-    - grid_map: numpy array of shape (400, 400)
-    - prediction: numpy array of shape (400, 400)
-    """
-    fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-    
-    ax[0].imshow(prediction, cmap='gray')
-    ax[0].set_title('Prediction Map')
-    
-    ax[1].imshow(real, cmap='gray')
-    ax[1].set_title('Real Map')
-    
-    plt.show()
-
 def split_data(lidar_data, BB_data, num_BB, size):
     # Split the dataset into a combined training and validation set, and a separate test set using num_BB as stratification
     X_train_val, X_test, y_train_val, y_test, num_BB_train_val, num_BB_test = train_test_split(
@@ -309,18 +291,20 @@ class Autoencoder(nn.Module):
     def __init__(self): # Constructor method for the autoencoder
         super(Autoencoder, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
