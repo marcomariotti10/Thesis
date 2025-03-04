@@ -12,73 +12,6 @@ from ffcv.transforms import ToTensor, ToDevice
 from concurrent.futures import ThreadPoolExecutor
 from torch.utils.data import DataLoader, TensorDataset
 
-
-class Autoencoder_classic(nn.Module):
-    def __init__(self): # Constructor method for the autoencoder
-        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2)
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
-class Autoencoder_big(nn.Module):
-    def __init__(self): # Constructor method for the autoencoder
-        super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2)
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
 def load_dataset(name,i,device, batch):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
@@ -119,7 +52,7 @@ def visualize_prediction(pred, gt, map):
     
     plt.show()
 
-def model_preparation(model_name):
+def model_preparation(model_name, model):
     
 
     # Check if CUDA is available
@@ -136,8 +69,6 @@ def model_preparation(model_name):
     model_path = MODEL_DIR
     model_name = model_name + '.pth'
     model_path = os.path.join(model_path, model_name)
-    
-    model = Autoencoder_big()
         
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -174,11 +105,11 @@ def evaluate(model, device):
     
     criterion = torch.nn.BCEWithLogitsLoss()
 
-    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
+    for i in range(NUMBER_OF_CHUNCKS): #type: ignore
 
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
 
-        test_loader = load_dataset('test', i, device, 32)
+        test_loader = load_dataset('train', i, device, 32)
 
         print("\nLenght test dataset: ", len(test_loader))
 
@@ -256,9 +187,11 @@ if __name__ == '__main__':
     from functions_for_NN import *
     from constants import *
 
-    model_name = 'model_20250303_015149_loss_0.0016'
+    model_name = 'model_20250301_181025_loss_0.0020_BCEwithlogitloss'
+
+    model_type = Autoencoder_classic()
     
-    model, device = model_preparation(model_name)
+    model, device = model_preparation(model_name, model_type)
 
     evaluate(model, device)
 

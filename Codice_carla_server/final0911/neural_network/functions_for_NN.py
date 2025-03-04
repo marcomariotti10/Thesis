@@ -286,10 +286,9 @@ def apply_augmentation(grid_maps, grid_maps_BB):
 def load_array(file_path):
     return np.load(file_path)
 
-# Define the autoencoder model
-class Autoencoder(nn.Module):
+class Autoencoder_big(nn.Module):
     def __init__(self): # Constructor method for the autoencoder
-        super(Autoencoder, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
             nn.ReLU(),
@@ -320,6 +319,69 @@ class Autoencoder(nn.Module):
         x = self.encoder(x).contiguous()
         x = self.decoder(x).contiguous()
         return x
+
+# Define the autoencoder model
+class DoubleConv(nn.Module):
+    """Two convolutional layers with batch normalization and ReLU activation."""
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True)
+        )
+    
+    def forward(self, x):
+        return self.conv(x)
+
+class UNet(nn.Module):
+    def __init__(self, in_channels=1, out_channels=1, features=[32, 64, 128]):
+        super().__init__()
+        
+        self.encoder = nn.ModuleList()
+        self.decoder = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # Encoder path
+        for feature in features:
+            self.encoder.append(DoubleConv(in_channels, feature))
+            in_channels = feature
+        
+        # Bottleneck
+        self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
+        
+        # Decoder path
+        for feature in reversed(features):
+            self.decoder.append(
+                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
+            )
+            self.decoder.append(DoubleConv(feature * 2, feature))
+        
+        # Final output layer
+        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
+    
+    def forward(self, x):
+        skip_connections = []
+        
+        # Encoder forward pass
+        for down in self.encoder:
+            x = down(x)
+            skip_connections.append(x)
+            x = self.pool(x)
+        
+        # Bottleneck
+        x = self.bottleneck(x)
+        
+        # Decoder forward pass
+        skip_connections = skip_connections[::-1]  # Reverse skip connections
+        for i in range(0, len(self.decoder), 2):
+            x = self.decoder[i](x)  # Transposed convolution (upsampling)
+            skip_connection = skip_connections[i // 2]
+            x = torch.cat((skip_connection, x), dim=1)  # Concatenate skip connection
+            x = self.decoder[i + 1](x)  # DoubleConv layer
+    
+        return self.final_conv(x)  # Sigmoid for binary segmentation
 
 class EarlyStopping:
     def __init__(self, patience=5, min_delta=0):

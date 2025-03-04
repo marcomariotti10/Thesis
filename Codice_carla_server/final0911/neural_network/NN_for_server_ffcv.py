@@ -36,7 +36,14 @@ from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
 
-
+def check_dead_neurons(model, input_data):
+    model.eval()
+    with torch.no_grad():
+        activations = model(input_data)
+        num_zeros = (activations == 0).sum().item()
+        total_neurons = activations.numel()
+        zero_percentage = (num_zeros / total_neurons) * 100
+        print(f"Dead neurons: {zero_percentage:.2f}%")
 
 def load_dataset(name,i,device):
     
@@ -50,11 +57,11 @@ def load_dataset(name,i,device):
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
-                    RandomHorizontalFlip(0.3),
+                    #RandomHorizontalFlip(0.3),
                     ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                     ToDevice(device, non_blocking=True)],
         'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
-                RandomHorizontalFlip(0.3),
+                #RandomHorizontalFlip(0.3),
                 ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
                 ToDevice(device, non_blocking=True)]
     })
@@ -81,12 +88,12 @@ if __name__ == "__main__":
     random.seed(SEED)
 
     # Model creation
-    model = Autoencoder()
+    model = Autoencoder_big()
     model.apply(weights_init)
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
-    early_stopping = EarlyStopping(patience=10, min_delta=0.0001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
+    early_stopping = EarlyStopping(patience=15, min_delta=0.0001)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -122,6 +129,9 @@ if __name__ == "__main__":
     num_total_epochs = 50
     num_epochs_for_each_chunck = 3
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
+
+    best_val_loss = float('inf')  # Initialize best validation loss
+    best_model_path = os.path.join(MODEL_DIR, "best_model.pth")  # Path to save the best model
 
     for j in range(num_total_epochs):
         
@@ -172,9 +182,15 @@ if __name__ == "__main__":
                 val_loss /= len(val_loader)
 
                 scheduler.step(val_loss)
-                print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+                print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')  
 
                 if j >= 2:
+                   
+                    if val_loss < best_val_loss:
+                        best_val_loss = val_loss
+                        #torch.save(model.state_dict(), best_model_path)
+                        #print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
+
                     early_stopping(val_loss)
                     if early_stopping.early_stop:
                         print("Early stopping triggered")
@@ -184,6 +200,11 @@ if __name__ == "__main__":
                     print("too early to stop")
                 
                 print(f"Time to move data to GPU: {datetime.now() - start}")
+
+    for data in val_loader:
+        inputs, targets = data
+        check_dead_neurons(model, inputs)
+        break
 
     print("\n-------------------------------------------")
     print("Training completed")
@@ -232,5 +253,5 @@ if __name__ == "__main__":
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
-    torch.save(model.state_dict(), model_save_path)
+    #torch.save(model.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')

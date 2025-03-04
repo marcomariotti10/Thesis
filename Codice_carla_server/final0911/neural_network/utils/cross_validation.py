@@ -12,6 +12,38 @@ from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 
+class Autoencoder_classic(nn.Module):
+    def __init__(self): # Constructor method for the autoencoder
+        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2)
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
+        return x
+
 def load_dataset(name, i, device, batch_size):
     name_train = f"dataset_{name}{i}.beton"
     complete_name_chunck_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
@@ -42,14 +74,14 @@ if __name__ == "__main__":
     gc.collect()
     random.seed(SEED)
     
-    batch_sizes = [64, 128]
+    batch_sizes = [4, 8, 64, 128]
     learning_rates = [0.001]
     test_results = {}
     
     for batch_size in batch_sizes:
         for lr in learning_rates:
             print(f"Running training with batch_size={batch_size} and learning_rate={lr}")
-            model = Autoencoder()
+            model = Autoencoder_classic()
             model.apply(weights_init)
             criterion = nn.BCEWithLogitsLoss()
             optimizer = optim.Adam(model.parameters(), lr=lr)
