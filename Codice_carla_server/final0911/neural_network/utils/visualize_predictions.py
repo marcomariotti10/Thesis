@@ -187,9 +187,9 @@ if __name__ == '__main__':
     from functions_for_NN import *
     from constants import *
 
-    model_name = 'model_20250301_181025_loss_0.0020_BCEwithlogitloss'
+    model_name = 'best_model'
 
-    model_type = Autoencoder_classic()
+    model_type = UNet()
     
     model, device = model_preparation(model_name, model_type)
 

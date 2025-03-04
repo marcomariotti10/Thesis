@@ -286,6 +286,39 @@ def apply_augmentation(grid_maps, grid_maps_BB):
 def load_array(file_path):
     return np.load(file_path)
 
+
+class Autoencoder_classic(nn.Module):
+    def __init__(self): # Constructor method for the autoencoder
+        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride = 2)
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
+        return x
+
 class Autoencoder_big(nn.Module):
     def __init__(self): # Constructor method for the autoencoder
         super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.

@@ -45,6 +45,71 @@ def check_dead_neurons(model, input_data):
         zero_percentage = (num_zeros / total_neurons) * 100
         print(f"Dead neurons: {zero_percentage:.2f}%")
 
+class DiceLoss(nn.Module):
+    def __init__(self, smooth=1e-6):
+        super(DiceLoss, self).__init__()
+        self.smooth = smooth  # Avoids division by zero
+
+    def forward(self, preds, targets):
+        preds = torch.sigmoid(preds)  # Ensure values are between 0 and 1
+        numerator = 2 * (preds * targets).sum() + self.smooth
+        denominator = preds.sum() + targets.sum() + self.smooth
+        return 1 - (numerator / denominator)  # 1 - Dice Score
+    
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=0, alpha=None, size_average=True):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        if isinstance(alpha, (float, int)): 
+            self.alpha = torch.Tensor([alpha, 1-alpha])
+        elif isinstance(alpha, list): 
+            self.alpha = torch.Tensor(alpha)
+        self.size_average = size_average
+
+    def forward(self, input, target):
+        # Ensure input and target have shape (1, 400, 400)
+        input = input.view(1, -1)  # Flatten input to shape (1, H*W)
+        target = target.view(1, -1).long()  # Flatten target to shape (1, H*W) and convert to int64
+        
+        logpt = F.log_softmax(input, dim=1)  # Apply log softmax along the last dimension
+        logpt = logpt.gather(1, target)  # Get the log probability of the target class
+        logpt = logpt.view(-1)  # Flatten to 1D
+
+        pt = logpt.exp()  # Convert log probability to probability (p_t)
+
+        if self.alpha is not None:
+            if self.alpha.type() != input.data.type():
+                self.alpha = self.alpha.type_as(input.data)
+            at = self.alpha.gather(0, target.view(-1))  # Select alpha for each class based on the target class
+            logpt = logpt * at  # Apply alpha weighting
+
+        loss = -1 * (1 - pt)**self.gamma * logpt  # Compute focal loss
+
+        if self.size_average:
+            return loss.mean()  # Return average loss
+        else:
+            return loss.sum()  # Return total loss
+        
+class WeightedBCELoss(nn.Module):
+    def __init__(self, weight_background=1.0, weight_object=5.0):
+        super(WeightedBCELoss, self).__init__()
+        # Weights for the background (0) and object (1) classes
+        self.weight_background = weight_background
+        self.weight_object = weight_object
+
+    def forward(self, predictions, targets):
+        # Predictions should be a probability (output of sigmoid), and targets should be 0 or 1
+        # Apply sigmoid to the predictions to convert them to probabilities
+        predictions = predictions.sigmoid()
+        
+        # Binary Cross-Entropy calculation
+        bce_loss = - (self.weight_object * targets * torch.log(predictions + 1e-8) + 
+                      self.weight_background * (1 - targets) * torch.log(1 - predictions + 1e-8))
+        
+        # Return the mean of the loss
+        return bce_loss.mean()
+
 def load_dataset(name,i,device):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
@@ -88,9 +153,9 @@ if __name__ == "__main__":
     random.seed(SEED)
 
     # Model creation
-    model = Autoencoder_big()
+    model = Autoencoder_classic()
     model.apply(weights_init)
-    criterion = torch.nn.BCEWithLogitsLoss()
+    criterion = WeightedBCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
     early_stopping = EarlyStopping(patience=15, min_delta=0.0001)
@@ -201,10 +266,12 @@ if __name__ == "__main__":
                 
                 print(f"Time to move data to GPU: {datetime.now() - start}")
 
-    for data in val_loader:
-        inputs, targets = data
-        check_dead_neurons(model, inputs)
-        break
+    # Get the first batch of data
+    first_batch = next(iter(train_loader))
+
+    # Unpack the inputs and targets from the first batch
+    inputs, targets = first_batch
+    check_dead_neurons(model, inputs)
 
     print("\n-------------------------------------------")
     print("Training completed")
