@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import sys
 import torch
 import torch.distributed as dist
@@ -10,28 +9,6 @@ from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 import os
-
-def load_dataset(name, i, device):
-    
-    name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written    
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
-    complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
-
-    train_loader = Loader(complete_path_train, batch_size=32,
-                          num_workers=8, order=OrderOption.QUASI_RANDOM,
-                          os_cache=True,
-                          pipelines={
-                              'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
-                                            #RandomHorizontalFlip(1),
-                                            ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                                            ToDevice(device, non_blocking=True)],
-                              'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
-                                        #RandomHorizontalFlip(1),
-                                        ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                                        ToDevice(device, non_blocking=True)]
-                          })
-
-    return train_loader
 
 def calculate_target_distribution(loader):
     total_zeros = 0
@@ -54,5 +31,5 @@ if __name__ == "__main__":
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for i in range(NUMBER_OF_CHUNCKS):
-        train_loader = load_dataset('train', i, device)
+        train_loader = load_dataset('train', i, device, 16)
         calculate_target_distribution(train_loader)

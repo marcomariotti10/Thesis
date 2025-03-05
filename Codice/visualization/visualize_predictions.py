@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import torch
 import numpy as np
 import os
@@ -16,26 +15,6 @@ from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 from concurrent.futures import ThreadPoolExecutor
 from torch.utils.data import DataLoader, TensorDataset
-
-def load_dataset(name,i,device, batch):
-    
-    name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
-    complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
-
-    train_loader = Loader(complete_path_train, batch_size=batch,
-    num_workers=8, order=OrderOption.QUASI_RANDOM,
-    os_cache=True,
-    pipelines={
-        'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
-                    ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                    ToDevice(device, non_blocking=True)],
-        'label': [NDArrayDecoder(),    # Decodes raw NumPy arrays
-                ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
-                ToDevice(device, non_blocking=True)]
-    })
-
-    return train_loader
 
 def visualize_prediction(pred, gt, map):
     """
@@ -114,7 +93,7 @@ def evaluate(model, device):
 
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
 
-        test_loader = load_dataset('test', i, device, 32)
+        test_loader = load_dataset('test', i, device, 16)
 
         print("\nLenght test dataset: ", len(test_loader))
 

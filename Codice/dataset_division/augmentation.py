@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import torch
 import torch.nn as nn
 import torch.optim as optim

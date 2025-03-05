@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import torch
 import numpy as np
 import os
@@ -13,25 +12,6 @@ from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 from torch.utils.data import DataLoader, TensorDataset
-
-def load_dataset(name, i, device, batch):
-    name_train = f"dataset_{name}{i}.beton"
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
-    complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
-
-    train_loader = Loader(complete_path_train, batch_size=batch,
-                          num_workers=8, order=OrderOption.QUASI_RANDOM,
-                          os_cache=True,
-                          pipelines={
-                              'covariate': [NDArrayDecoder(),
-                                            ToTensor(),
-                                            ToDevice(device, non_blocking=True)],
-                              'label': [NDArrayDecoder(),
-                                        ToTensor(),
-                                        ToDevice(device, non_blocking=True)]
-                          })
-
-    return train_loader
 
 def visualize_prediction(pred, gt, map, pred1, pred2, pred3):
     fig, ax = plt.subplots(2, 3, figsize=(12, 16))

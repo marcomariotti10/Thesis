@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import numpy as np
 import os
 import sys
@@ -28,7 +27,7 @@ class DatasetNPY(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.X)
     
-def load_dataset(name, i):
+def load_dataset_NPY(name, i):
     dataset = DatasetNPY(name, i)
     x, y = dataset[0]
     print(f"X shape dataset {name}: {x.shape}, Y shape dataset {name}: {y.shape}")
@@ -56,11 +55,11 @@ if __name__ == '__main__':
     for i in range (NUMBER_OF_CHUNCKS):
 
         with ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(load_dataset, 'train', i)
-            executor.submit(load_dataset, 'val', i)
+            executor.submit(load_dataset_NPY, 'train', i)
+            executor.submit(load_datase_NPY, 'val', i)
 
     i = 0
 
     for i in range (NUMBER_OF_CHUNCKS_TEST):
 
-        load_dataset('test', i)
+        load_dataset_NPY('test', i)

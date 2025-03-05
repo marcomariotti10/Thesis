@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import os
 import numpy as np
 import math
@@ -18,7 +17,7 @@ def fit_scalers():
     scaler_y = MinMaxScaler()
 
     # Parameters for processing
-    number_of_chucks = 5
+    number_of_chucks = NUMBER_OF_CHUNCKS + int(NUMBER_OF_CHUNCKS*0.2)
 
     random.seed(SEED)
 

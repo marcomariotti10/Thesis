@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import *
-from neural_network import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -48,19 +47,6 @@ class Autoencoder_classic(nn.Module):
         x = self.encoder(x).contiguous()
         x = self.decoder(x).contiguous()
         return x
-
-def load_dataset(name, i, device, batch_size):
-    name_train = f"dataset_{name}{i}.beton"
-    complete_name_chunck_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
-    complete_path_train = os.path.join(complete_name_chunck_path, name_train)
-    
-    train_loader = Loader(complete_path_train, batch_size=batch_size, num_workers=8, order=OrderOption.RANDOM,
-                          distributed=True, seed=SEED, drop_last=True, os_cache=False,
-                          pipelines={
-                              'covariate': [NDArrayDecoder(), ToTensor(), ToDevice(device, non_blocking=True)],
-                              'label': [NDArrayDecoder(), ToTensor(), ToDevice(device, non_blocking=True)]
-                          })
-    return train_loader
 
 if __name__ == "__main__":
     os.environ['MASTER_ADDR'] = 'localhost'
