@@ -105,11 +105,11 @@ def evaluate(model, device):
     
     criterion = torch.nn.BCEWithLogitsLoss()
 
-    for i in range(NUMBER_OF_CHUNCKS): #type: ignore
+    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
 
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
 
-        test_loader = load_dataset('train', i, device, 32)
+        test_loader = load_dataset('test', i, device, 32)
 
         print("\nLenght test dataset: ", len(test_loader))
 
@@ -187,9 +187,9 @@ if __name__ == '__main__':
     from functions_for_NN import *
     from constants import *
 
-    model_name = 'best_model'
+    model_name = 'model_20250304_184246_loss_0.0270'
 
-    model_type = UNet()
+    model_type = Autoencoder_classic()
     
     model, device = model_preparation(model_name, model_type)
 

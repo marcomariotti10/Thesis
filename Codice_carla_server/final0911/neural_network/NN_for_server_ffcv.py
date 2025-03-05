@@ -92,7 +92,7 @@ class FocalLoss(nn.Module):
             return loss.sum()  # Return total loss
         
 class WeightedBCELoss(nn.Module):
-    def __init__(self, weight_background=1.0, weight_object=5.0):
+    def __init__(self, weight_background=1.0, weight_object=100.0):
         super(WeightedBCELoss, self).__init__()
         # Weights for the background (0) and object (1) classes
         self.weight_background = weight_background
@@ -155,8 +155,7 @@ if __name__ == "__main__":
     # Model creation
     model = Autoencoder_classic()
     model.apply(weights_init)
-    criterion = WeightedBCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
     early_stopping = EarlyStopping(patience=15, min_delta=0.0001)
 
@@ -182,6 +181,9 @@ if __name__ == "__main__":
     print(f"ID of current CUDA device:{torch.cuda.current_device()}")
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
+
+    pos_weight = torch.tensor([10]).to(device)  # Must be a tensor!
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     if isinstance(model, nn.DataParallel):
         summary(model.module, (1, 400, 400))
@@ -320,5 +322,5 @@ if __name__ == "__main__":
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
-    #torch.save(model.state_dict(), model_save_path)
+    torch.save(model.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')

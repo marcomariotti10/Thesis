@@ -74,8 +74,8 @@ if __name__ == "__main__":
     gc.collect()
     random.seed(SEED)
     
-    batch_sizes = [4, 8, 64, 128]
-    learning_rates = [0.001]
+    batch_sizes = [4, 8, 16, 32, 64, 128]
+    learning_rates = [0.1, 0.001, 0.005]
     test_results = {}
     
     for batch_size in batch_sizes:
