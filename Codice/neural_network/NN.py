@@ -40,12 +40,27 @@ import torch.distributed as dist
 
 def check_dead_neurons(model, input_data):
     model.eval()
-    with torch.no_grad():
-        activations = model(input_data)
-        num_zeros = (activations == 0).sum().item()
-        total_neurons = activations.numel()
+    dead_neurons = {}
+    
+    def hook_fn(module, input, output, layer_name):
+        num_zeros = (output == 0).sum().item()
+        total_neurons = output.numel()
         zero_percentage = (num_zeros / total_neurons) * 100
-        print(f"Dead neurons: {zero_percentage:.2f}%")
+        dead_neurons[layer_name] = zero_percentage
+
+    hooks = []
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.LeakyReLU):  
+            hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
+
+    with torch.no_grad():
+        _ = model(input_data)  # Forward pass to collect activations
+
+    for hook in hooks:
+        hook.remove()  # Clean up hooks
+
+    for layer, percentage in dead_neurons.items():
+        print(f"Layer {layer}: {percentage:.2f}% dead neurons")
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
@@ -173,7 +188,7 @@ if __name__ == "__main__":
     early_stopping_triggered = False
     number_of_chucks= NUMBER_OF_CHUNCKS
     num_total_epochs = 50
-    num_epochs_for_each_chunck = 3
+    num_epochs_for_each_chunck = 1
     number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
     batch_size = 16
 
@@ -184,9 +199,16 @@ if __name__ == "__main__":
         
         if early_stopping_triggered:
             break
+        
+        random.seed(SEED+j)
+
+        train_order = random.sample(range(number_of_chucks), number_of_chucks)  
+        val_order = random.sample(range(number_of_chucks), number_of_chucks)
+
+        print("\nOrder of the chuncks for training:", train_order)
+        print("Order of the chuncks for validation:", val_order)
 
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
-        random.seed(SEED + j)
 
         for i in range(number_of_chucks): #type: ignore
             
@@ -195,8 +217,11 @@ if __name__ == "__main__":
             
             print(f"\nChunck number {i+1} of {number_of_chucks}")
 
+            train_index = train_order[i]
+            val_index = val_order[i]
+
             with ThreadPoolExecutor(max_workers=2) as executor:
-                train_loader, val_loader = executor.map(load_dataset, ['train', 'val'], [i, i], [device, device], [batch_size, batch_size])
+                train_loader, val_loader = executor.map(load_dataset, ['train', 'val'], [train_index, val_index], [device, device], [batch_size, batch_size])
 
             print("\nLenght of the datasets:", len(train_loader), len(val_loader))
 
