@@ -9,8 +9,7 @@ if __name__ == "__main__":
     scripts = [
         "generate_chuncks.py",
         "augmentation.py",
-        "generate_ffcv.py",
-        "NN_for_server_ffcv.py",
+        "generate_ffcv.py"
     ]
 
     current_dir = os.path.dirname(__file__)

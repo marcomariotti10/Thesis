@@ -129,7 +129,6 @@ class WeightedBCELoss(nn.Module):
 
 if __name__ == "__main__":
 
-    
     # Set environment variables for distributed training
     os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
     os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)

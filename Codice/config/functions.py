@@ -264,7 +264,7 @@ def load_dataset(name,i,device, batch):
     complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
 
     train_loader = Loader(complete_path_train, batch_size=batch,
-    num_workers=8, order=OrderOption.QUASI_RANDOM,
+    num_workers=8, order=OrderOption.RANDOM, distributed=True, seed = SEED, drop_last= True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
@@ -293,24 +293,24 @@ class Autoencoder_classic(nn.Module):
         super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
@@ -325,26 +325,26 @@ class Autoencoder_big(nn.Module):
         super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.01),
+            nn.ReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
