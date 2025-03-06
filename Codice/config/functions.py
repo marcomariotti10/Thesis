@@ -265,7 +265,7 @@ def load_dataset(name,i,device, batch):
 
     train_loader = Loader(complete_path_train, batch_size=batch,
     num_workers=8, order=OrderOption.QUASI_RANDOM,
-    os_cache=True,
+    os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
                     ToTensor(),          # Converts to PyTorch Tensor (1,400,400)
