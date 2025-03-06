@@ -8,7 +8,7 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911_prove'
+DATA_HOME = HOME + r'/data_map03_0911'
 
 HOME_SAVING = HOME + r'/Codice/Savings'
 
