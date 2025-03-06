@@ -47,6 +47,15 @@ POSITION_2_TEST = DATA_HOME + r'/6_test/position_test/position_2'
 LIDAR_3_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_3'
 POSITION_3_TEST = DATA_HOME + r'/6_test/position_test/position_3'
 
+LIDAR_1_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_2'
+POSITION_1_VAL = DATA_HOME + r'/7_val/position_val/position_1'
+
+LIDAR_2_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_1'
+POSITION_2_VAL = DATA_HOME + r'/7_val/position_val/position_2'
+
+LIDAR_3_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_3'
+POSITION_3_VAL = DATA_HOME + r'/7_val/position_val/position_3'
+
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
@@ -91,3 +100,4 @@ SEED = 42
 TEST_SIZE = 0.1
 NUMBER_OF_CHUNCKS = 3
 NUMBER_OF_CHUNCKS_TEST = 2
+NUMBER_OF_CHUNCKS_VAL = 2

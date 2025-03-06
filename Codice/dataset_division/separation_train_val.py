@@ -36,11 +36,11 @@ def cut_files(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_
     except FileNotFoundError:
         print(f"File not found: {file}")
 
-def move_file(files_lidar, files_BB, src_lidar_path, src_BB_path, dest_lidar_path_test, dest_BB_path_test, dest_lidar_path_val, dest_BB_path_val):
+def move_file(files_lidar, files_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_BB_path):
     with Pool() as pool:
-        pool.starmap(cut_files, [(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path_test, dest_BB_path_test, dest_lidar_path_val, dest_BB_path_val) for file, file_BB in zip(files_lidar, files_BB)])
+        pool.starmap(cut_files, [(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_BB_path) for file, file_BB in zip(files_lidar, files_BB)])
     
-def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final_test, BB_path_final_test, lidar_path_final_val, BB_path_final_val):
+def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_final):
     
     # Shuffle files_lidar_1 and files_BB_1 in the same way
     combined_files = list(zip(sorted([f for f in os.listdir(lidar_path_initial)]), sorted([f for f in os.listdir(BB_path_initial)])))
@@ -50,7 +50,7 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final_test, BB_pat
     files_lidar = list(files_lidar)
     files_BB = list(files_BB)
 
-    sum_ped, sum_bic, sum_car = number_of_BB(files_BB, lidar_path_initial)
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB, BB_path_initial)
     print(f"\nSum_complete_lidar: ", sum_ped, sum_bic, sum_car)
     print(f"Average_complete_lidar: ", sum_ped/len(files_BB), sum_bic/len(files_BB), sum_car/len(files_BB))
 
@@ -62,27 +62,20 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final_test, BB_pat
     files_lidar_test = files_lidar[ 0 : min( file_for_test, len(files_lidar) ) ] #type: ignore
     files_BB_test = files_BB[ 0 : min( file_for_test, len(files_BB) ) ] #type: ignore
 
-    files_lidar_val = files_lidar[ - min( file_for_test, len(files_lidar) ) :  ] #type: ignore
-    files_BB_val = files_BB[ - min( file_for_test, len(files_BB) ) :  ] #type: ignore
-
-    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_test, lidar_path_initial)
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_test, BB_path_initial)
     print(f"\nSum_lidar_test: ", sum_ped, sum_bic, sum_car)
     print(f"Average_lidar_test: ", sum_ped/len(files_BB_test), sum_bic/len(files_BB_test), sum_car/len(files_BB_test))
 
-    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_val, lidar_path_initial)
-    print(f"\nSum_lidar_val: ", sum_ped, sum_bic, sum_car)
-    print(f"Average_lidar_val: ", sum_ped/len(files_BB_val), sum_bic/len(files_BB_val), sum_car/len(files_BB_val))
-
-    move_file(files_lidar_test, files_BB_test, lidar_path_initial, BB_path_initial, lidar_path_final_test, BB_path_final_test, lidar_path_final_val, BB_path_final_val) #type: ignore
+    move_file(files_lidar_test, files_BB_test, lidar_path_initial_test, BB_path_initial, lidar_path_final, BB_path_final) #type: ignore
 
 if __name__=="__main__":
 
     print("Lidar1")
-    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, LIDAR_1_TEST, POSITION_1_TEST, LIDAR_1_VAL, POSITION_1_VAL)
+    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, LIDAR_1_VAL, POSITION_1_VAL)
     print("Lidar2")
-    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, LIDAR_2_TEST, POSITION_2_TEST, LIDAR_2_VAL, POSITION_2_VAL)
+    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, LIDAR_2_VAL, POSITION_2_VAL)
     print("Lidar3")
-    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, LIDAR_3_TEST, POSITION_3_TEST, LIDAR_3_VAL, POSITION_3_VAL)
+    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, LIDAR_3_VAL, POSITION_3_VAL)
 
     
 

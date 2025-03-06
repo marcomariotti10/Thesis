@@ -89,11 +89,11 @@ def evaluate(model, device):
     
     criterion = torch.nn.BCEWithLogitsLoss()
 
-    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
+    for i in range(NUMBER_OF_CHUNCKS): #type: ignore
 
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
 
-        test_loader = load_dataset('test', i, device, 16)
+        test_loader = load_dataset('train', i, device, 16)
 
         print("\nLenght test dataset: ", len(test_loader))
 
@@ -162,9 +162,9 @@ def show_predictions(model, device):
 
 if __name__ == '__main__':
 
-    model_name = 'model_20250304_184246_loss_0.0270'
+    model_name = 'model_20250306_132521_loss_0.0017__big_leakyRelu'
 
-    model_type = Autoencoder_classic()
+    model_type = Autoencoder_big()
     
     model, device = model_preparation(model_name, model_type)
 
