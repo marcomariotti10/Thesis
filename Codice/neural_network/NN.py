@@ -149,9 +149,9 @@ if __name__ == "__main__":
     # Model creation
     model = Autoencoder_classic()
     model.apply(weights_init)
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
-    early_stopping = EarlyStopping(patience=15, min_delta=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
+    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
-    pos_weight = torch.tensor([10]).to(device)  # Must be a tensor!
+    pos_weight = torch.tensor([1]).to(device)  # Must be a tensor!
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     if isinstance(model, nn.DataParallel):
@@ -186,10 +186,11 @@ if __name__ == "__main__":
 
     # Parameters for training
     early_stopping_triggered = False
-    number_of_chucks= NUMBER_OF_CHUNCKS
+    number_of_chuncks= NUMBER_OF_CHUNCKS
     num_total_epochs = 50
-    num_epochs_for_each_chunck = 1
-    number_of_chucks_testset = NUMBER_OF_CHUNCKS_TEST
+    num_epochs_for_each_chunck = 3
+    number_of_chuncks_test = NUMBER_OF_CHUNCKS_TEST
+    number_of_chuncks_val = NUMBER_OF_CHUNCKS_VAL
     batch_size = 16
 
     best_val_loss = float('inf')  # Initialize best validation loss
@@ -202,28 +203,24 @@ if __name__ == "__main__":
         
         random.seed(SEED+j)
 
-        train_order = random.sample(range(number_of_chucks), number_of_chucks)  
-        val_order = random.sample(range(number_of_chucks), number_of_chucks)
+        train_order = random.sample(range(number_of_chuncks), number_of_chuncks)  
 
         print("\nOrder of the chuncks for training:", train_order)
-        print("Order of the chuncks for validation:", val_order)
 
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
 
-        for i in range(number_of_chucks): #type: ignore
+        for i in range(number_of_chuncks): #type: ignore
             
             if early_stopping_triggered:
                 break
             
-            print(f"\nChunck number {i+1} of {number_of_chucks}")
+            print(f"\nChunck number {i+1} of {number_of_chuncks}")
 
             train_index = train_order[i]
-            val_index = val_order[i]
 
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                train_loader, val_loader = executor.map(load_dataset, ['train', 'val'], [train_index, val_index], [device, device], [batch_size, batch_size])
+            train_loader = load_dataset('train', train_index, device, batch_size)
 
-            print("\nLenght of the datasets:", len(train_loader), len(val_loader))
+            print("\nLenght of the train dataset:", len(train_loader))
 
 
             for epoch in range(num_epochs_for_each_chunck):
@@ -242,36 +239,48 @@ if __name__ == "__main__":
                     train_loss += loss.item()
                 train_loss /= len(train_loader)
 
-                model.eval()
-                val_loss = 0
-                with torch.no_grad():
-                    for data in val_loader:
-                        inputs, targets = data
-                        targets = targets.float()
-                        outputs = model(inputs)
-                        loss = criterion(outputs, targets)
-                        val_loss += loss.item()
-                val_loss /= len(val_loader)
+                if ( epoch+1 == num_epochs_for_each_chunck ):
 
-                scheduler.step(val_loss)
-                print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')  
+                    val_losses = []
 
-                if j >= 2:
-                   
-                    if val_loss < best_val_loss:
-                        best_val_loss = val_loss
-                        #torch.save(model.state_dict(), best_model_path)
-                        #print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
+                    for k in range (number_of_chuncks_val):
 
-                    early_stopping(val_loss)
-                    if early_stopping.early_stop:
-                        print("Early stopping triggered")
-                        early_stopping_triggered = True
-                        break
+                        val_loader = load_dataset('val', k, device, batch_size)
+
+                        #print("\nLenght of the val dataset:", len(val_loader))
+
+                        model.eval()
+                        val_loss = 0
+                        with torch.no_grad():
+                            for data in val_loader:
+                                inputs, targets = data
+                                targets = targets.float()
+                                outputs = model(inputs)
+                                loss = criterion(outputs, targets)
+                                val_loss += loss.item()
+                        val_loss /= len(val_loader)
+                        #print("Val loss:", val_loss)
+                        val_losses.append(val_loss)
+
+                    total_val_loss = sum(val_losses) / len(val_losses)
+                    print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
+                    
+                    if j >= 1:
+                    
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            #torch.save(model.state_dict(), best_model_path)
+                            #print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
+                        
+                        scheduler.step(val_loss)
+                        early_stopping(val_loss)
+                        if early_stopping.early_stop:
+                            print("Early stopping triggered")
+                            early_stopping_triggered = True
+                            break
+            
                 else:
-                    print("too early to stop")
-                
-                print(f"Time to move data to GPU: {datetime.now() - start}")
+                    print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
 
     # Get the first batch of data
     first_batch = next(iter(train_loader))
@@ -289,12 +298,9 @@ if __name__ == "__main__":
     test_losses = []
     i = 0
 
-    for i in range(number_of_chucks_testset): #type: ignore
+    for i in range(number_of_chuncks_test): #type: ignore
 
-        print(f"\nTest chunck number {i+1} of {number_of_chucks_testset}: ")
-
-        name_test = f"dataset_test{i}.beton"  # Define the path where the dataset will be written
-        complete_path_train = os.path.join(FFCV_DIR, name_test)
+        print(f"\nTest chunck number {i+1} of {number_of_chuncks_test}: ")
 
         test_loader = load_dataset('test', i, device, batch_size)
 
@@ -327,5 +333,5 @@ if __name__ == "__main__":
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
-    torch.save(model.state_dict(), model_save_path)
+    #torch.save(model.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')

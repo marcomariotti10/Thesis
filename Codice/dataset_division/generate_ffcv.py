@@ -44,6 +44,11 @@ def load_dataset_NPY(name, i):
 
     writer.from_indexed_dataset(dataset)
 
+    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+
+    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
+    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
+
 if __name__ == '__main__':
 
     shape = (1,400, 400)  # Shape of each sample
@@ -54,12 +59,16 @@ if __name__ == '__main__':
 
     for i in range (NUMBER_OF_CHUNCKS):
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(load_dataset_NPY, 'train', i)
-            executor.submit(load_datase_NPY, 'val', i)
+        load_dataset_NPY('train', i)
 
     i = 0
 
     for i in range (NUMBER_OF_CHUNCKS_TEST):
 
         load_dataset_NPY('test', i)
+
+    i = 0
+
+    for i in range (NUMBER_OF_CHUNCKS_VAL):
+        
+        load_dataset_NPY('val', i)

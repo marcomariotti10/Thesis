@@ -38,11 +38,16 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_fin
 
     move_file(files_lidar, files_BB, lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_final)
 
+def revert(lidar1_path, position1_path, lidar2_path, position2_path, lidar3_path, position3_path):
+    print("Reverting Lidar1")
+    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, lidar1_path, position1_path)    
+    print("Reverting Lidar2")
+    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, lidar2_path, position2_path)
+    print("Reverting Lidar3")
+    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, lidar3_path, position3_path)
+
 if __name__=="__main__":
 
-    print("Reverting Lidar1")
-    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, LIDAR_1_TEST, POSITION_1_TEST)    
-    print("Reverting Lidar2")
-    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, LIDAR_2_TEST, POSITION_2_TEST)
-    print("Reverting Lidar3")
-    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, LIDAR_3_TEST, POSITION_3_TEST)
+    revert(LIDAR_1_TEST, POSITION_1_TEST, LIDAR_2_TEST, POSITION_2_TEST, LIDAR_3_TEST, POSITION_3_TEST) #revert test
+    revert(LIDAR_1_VAL, POSITION_1_VAL, LIDAR_2_VAL, POSITION_2_VAL, LIDAR_3_VAL, POSITION_3_VAL) #revert val
+    
