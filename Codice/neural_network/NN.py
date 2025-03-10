@@ -50,7 +50,7 @@ def check_dead_neurons(model, input_data):
 
     hooks = []
     for name, module in model.named_modules():
-        if isinstance(module, torch.nn.LeakyReLU):  
+        if isinstance(module, torch.nn.ReLU):  
             hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
 
     with torch.no_grad():
@@ -175,8 +175,7 @@ if __name__ == "__main__":
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
-    pos_weight = torch.tensor([1]).to(device)  # Must be a tensor!
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    criterion = torch.nn.BCEWithLogitsLoss()
 
     if isinstance(model, nn.DataParallel):
         summary(model.module, (1, 400, 400))
@@ -186,8 +185,8 @@ if __name__ == "__main__":
     # Parameters for training
     early_stopping_triggered = False
     number_of_chuncks= NUMBER_OF_CHUNCKS
-    num_total_epochs = 50
-    num_epochs_for_each_chunck = 3
+    num_total_epochs = 1
+    num_epochs_for_each_chunck = 1
     number_of_chuncks_test = NUMBER_OF_CHUNCKS_TEST
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_VAL
     batch_size = 16
@@ -332,5 +331,5 @@ if __name__ == "__main__":
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
-    #torch.save(model.state_dict(), model_save_path)
+    torch.save(model.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')

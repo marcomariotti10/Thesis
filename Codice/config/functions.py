@@ -30,7 +30,7 @@ from multiprocessing import Pool
 from sklearn.preprocessing import MinMaxScaler
 import platform
 
-if 'microsoft-standard' in platform.release():
+if platform.system() in 'Linux':
     from ffcv.loader import Loader, OrderOption
     from ffcv.transforms import ToTensor, ToDevice, RandomHorizontalFlip, RandomTranslate, Cutout
     from ffcv.fields.decoders import NDArrayDecoder
@@ -263,8 +263,10 @@ def load_dataset(name,i,device, batch):
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
 
+    random_seed = random.randint(0, 1000)
+
     train_loader = Loader(complete_path_train, batch_size=batch,
-    num_workers=8, order=OrderOption.RANDOM, distributed=True, seed = SEED, drop_last= True,
+    num_workers=8, order=OrderOption.RANDOM, distributed=True, seed = random_seed, drop_last= True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
@@ -325,26 +327,26 @@ class Autoencoder_big(nn.Module):
         super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )

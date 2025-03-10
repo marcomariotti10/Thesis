@@ -15,6 +15,7 @@ from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 from concurrent.futures import ThreadPoolExecutor
 from torch.utils.data import DataLoader, TensorDataset
+import torch.distributed as dist
 
 def visualize_prediction(pred, gt, map):
     """
@@ -37,7 +38,6 @@ def visualize_prediction(pred, gt, map):
     plt.show()
 
 def model_preparation(model_name, model):
-    
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -56,7 +56,6 @@ def model_preparation(model_name, model):
         
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        model = model.to(device)
         print(f"Using GPU: {torch.cuda.get_device_name(0)}")
     else:
         device = torch.device("cpu")
@@ -75,6 +74,13 @@ def model_preparation(model_name, model):
 
     # Now load the cleaned state dict into your model
     model.load_state_dict(new_state_dict)
+
+    model = model.to(device)
+
+    # Check for multiple GPUs
+    if torch.cuda.device_count() > 1:
+        print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+        model = nn.DataParallel(model)
 
     summary(model, (1, 400, 400))
     
@@ -162,7 +168,19 @@ def show_predictions(model, device):
 
 if __name__ == '__main__':
 
-    model_name = 'model_20250306_132521_loss_0.0017__big_leakyRelu'
+    # Set environment variables for distributed training
+    os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
+    os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)
+
+    # Set other environment variables for single-node multi-GPU setup
+    os.environ['RANK'] = '0'       # Process rank (0 for single process)
+    os.environ['WORLD_SIZE'] = '1'  # Total number of processes
+    os.environ['LOCAL_RANK'] = '0'  # Local rank for single-GPU (0 for single GPU)
+
+    # Initialize the distributed process group
+    dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
+
+    model_name = 'model_20250307_230024_loss_0.0022_big_oneval_1epoch'
 
     model_type = Autoencoder_big()
     
