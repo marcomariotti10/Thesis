@@ -42,23 +42,18 @@ def model_preparation(model_names, models_types):
     print(f"ID of current CUDA device:{torch.cuda.current_device()}")
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+    else:
+        device = torch.device("cpu")
+        print("CUDA is not available. Using CPU.")
+
     models = []
+
     for model_name in model_names:
         model_path = os.path.join(MODEL_DIR, model_name + '.pth')
         model = models_types[model_names.index(model_name)]
-
-        # Check for multiple GPUs
-        if torch.cuda.device_count() > 1:
-            print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
-            model = nn.DataParallel(model)
-
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-            model = model.to(device)
-            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
-        else:
-            device = torch.device("cpu")
-            print("CUDA is not available. Using CPU.")
 
         checkpoint = torch.load(model_path, map_location=device)
         state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
@@ -66,6 +61,12 @@ def model_preparation(model_names, models_types):
         model.load_state_dict(new_state_dict)
         model.eval()
         models.append(model)
+        model = model.to(device)
+
+        # Check for multiple GPUs
+        if torch.cuda.device_count() > 1:
+            print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+            model = nn.DataParallel(model)
 
     return models, device
 
@@ -177,3 +178,5 @@ if __name__ == '__main__':
     evaluate(models, device)
 
     show_predictions(models, device)
+
+    dist.destroy_process_group()

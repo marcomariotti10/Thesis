@@ -16,6 +16,7 @@ from ffcv.transforms import ToTensor, ToDevice
 from concurrent.futures import ThreadPoolExecutor
 from torch.utils.data import DataLoader, TensorDataset
 import torch.distributed as dist
+import argparse
 
 def visualize_prediction(pred, gt, map):
     """
@@ -37,7 +38,7 @@ def visualize_prediction(pred, gt, map):
     
     plt.show()
 
-def model_preparation(model_name, model):
+def model_preparation(model_name, model_type, activation_function):
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -49,6 +50,7 @@ def model_preparation(model_name, model):
         
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
+    model = model_type(activation_fn = activation_function)
     # Load model
     model_path = MODEL_DIR
     model_name = model_name + '.pth'
@@ -71,6 +73,9 @@ def model_preparation(model_name, model):
     for key, value in state_dict.items():
         new_key = key.replace('module.', '')  # Remove 'module.' prefix
         new_state_dict[new_key] = value
+
+    print("Saved model keys:", new_state_dict.keys())
+    print("Current model keys:", model.state_dict().keys())
 
     # Now load the cleaned state dict into your model
     model.load_state_dict(new_state_dict)
@@ -168,6 +173,16 @@ def show_predictions(model, device):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Train and test a neural network model.')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_classic', help='Type of model to use')
+    parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
+    parser.add_argument('--model_name', type=str, default='model_20250310_181958_loss_0.0109', help='Name of the model to load')
+    args = parser.parse_args()
+
+    model_type = globals()[args.model_type]
+    activation_function = getattr(nn, args.activation_function)  # This retrieves the activation function class
+    model_name = args.model_name
+
     # Set environment variables for distributed training
     os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
     os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)
@@ -179,12 +194,8 @@ if __name__ == '__main__':
 
     # Initialize the distributed process group
     dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
-
-    model_name = 'model_20250307_230024_loss_0.0022_big_oneval_1epoch'
-
-    model_type = Autoencoder_big()
     
-    model, device = model_preparation(model_name, model_type)
+    model, device = model_preparation(model_name, model_type, activation_function)
 
     evaluate(model, device)
 

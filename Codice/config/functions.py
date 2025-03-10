@@ -265,8 +265,13 @@ def load_dataset(name,i,device, batch):
 
     random_seed = random.randint(0, 1000)
 
+    if name == 'train':
+        order = OrderOption.RANDOM
+    else:
+        order = OrderOption.SEQUENTIAL
+    
     train_loader = Loader(complete_path_train, batch_size=batch,
-    num_workers=8, order=OrderOption.RANDOM, distributed=True, seed = random_seed, drop_last= True,
+    num_workers=8, order=order, distributed=True, seed = random_seed, drop_last= True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
@@ -290,29 +295,57 @@ def weights_init(m):
         if m.bias is not None:
             init.constant_(m.bias, 0)
 
+def check_dead_neurons(model, input_data, activation_fn=nn.ReLU):
+    model.eval()
+    dead_neurons = {}
+    
+    def hook_fn(module, input, output, layer_name):
+        num_zeros = (output == 0).sum().item()
+        total_neurons = output.numel()
+        zero_percentage = (num_zeros / total_neurons) * 100
+        dead_neurons[layer_name] = zero_percentage
+
+    hooks = []
+    for name, module in model.named_modules():
+        if isinstance(module, activation_fn):  
+            hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
+
+    with torch.no_grad():
+        _ = model(input_data)  # Forward pass to collect activations
+
+    for hook in hooks:
+        hook.remove()  # Clean up hooks
+
+    print("\nDead Neurons:")
+
+    for layer, percentage in dead_neurons.items():
+        print(f"Layer {layer}: {percentage:.2f}% dead neurons")
+
+    print("\n")
+
 class Autoencoder_classic(nn.Module):
-    def __init__(self): # Constructor method for the autoencoder
+    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
         super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
@@ -323,30 +356,30 @@ class Autoencoder_classic(nn.Module):
         return x
 
 class Autoencoder_big(nn.Module):
-    def __init__(self): # Constructor method for the autoencoder
+    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
         super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.MaxPool2d(2, stride = 2)
         )
         self.decoder = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.LeakyReLU(),
+            activation_fn(),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
@@ -356,23 +389,22 @@ class Autoencoder_big(nn.Module):
         x = self.decoder(x).contiguous()
         return x
 
-# Define the autoencoder model
 class DoubleConv(nn.Module):
     """Two convolutional layers with batch normalization and ReLU activation."""
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, activation_fn):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            activation_fn(),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True)
+            activation_fn()
         )
     
     def forward(self, x):
         return self.conv(x)
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, features=[32, 64, 128]):
+    def __init__(self, in_channels=1, out_channels=1, features=[32, 64, 128], activation_fn=nn.ReLU):
         super().__init__()
         
         self.encoder = nn.ModuleList()
@@ -381,18 +413,18 @@ class UNet(nn.Module):
         
         # Encoder path
         for feature in features:
-            self.encoder.append(DoubleConv(in_channels, feature))
+            self.encoder.append(DoubleConv(in_channels, feature, activation_fn ))
             in_channels = feature
         
         # Bottleneck
-        self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
+        self.bottleneck = DoubleConv(features[-1], features[-1] * 2, activation_fn)
         
         # Decoder path
         for feature in reversed(features):
             self.decoder.append(
                 nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
             )
-            self.decoder.append(DoubleConv(feature * 2, feature))
+            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
         
         # Final output layer
         self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)

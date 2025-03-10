@@ -8,7 +8,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import csv
 import os
-import numpy as np
+import numpy as np    
+import argparse
 import cProfile
 import pstats
 import sys
@@ -37,30 +38,6 @@ from sklearn.preprocessing import MinMaxScaler
 from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
-
-def check_dead_neurons(model, input_data):
-    model.eval()
-    dead_neurons = {}
-    
-    def hook_fn(module, input, output, layer_name):
-        num_zeros = (output == 0).sum().item()
-        total_neurons = output.numel()
-        zero_percentage = (num_zeros / total_neurons) * 100
-        dead_neurons[layer_name] = zero_percentage
-
-    hooks = []
-    for name, module in model.named_modules():
-        if isinstance(module, torch.nn.ReLU):  
-            hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
-
-    with torch.no_grad():
-        _ = model(input_data)  # Forward pass to collect activations
-
-    for hook in hooks:
-        hook.remove()  # Clean up hooks
-
-    for layer, percentage in dead_neurons.items():
-        print(f"Layer {layer}: {percentage:.2f}% dead neurons")
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
@@ -127,26 +104,9 @@ class WeightedBCELoss(nn.Module):
         # Return the mean of the loss
         return bce_loss.mean()
 
-if __name__ == "__main__":
-
-    # Set environment variables for distributed training
-    os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
-    os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)
-
-    # Set other environment variables for single-node multi-GPU setup
-    os.environ['RANK'] = '0'       # Process rank (0 for single process)
-    os.environ['WORLD_SIZE'] = '1'  # Total number of processes
-    os.environ['LOCAL_RANK'] = '0'  # Local rank for single-GPU (0 for single GPU)
-
-    # Initialize the distributed process group
-    dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
-    
-    gc.collect()
-
-    random.seed(SEED)
-
+def define_models(model_type, activation_function):
     # Model creation
-    model = Autoencoder_classic()
+    model = model_type(activation_fn = activation_function)
     model.apply(weights_init)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
@@ -172,8 +132,10 @@ if __name__ == "__main__":
     # Storing ID of current CUDA device
     cuda_id = torch.cuda.current_device()
     print(f"ID of current CUDA device:{torch.cuda.current_device()}")
-        
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
+
+    #pos_weight = torch.tensor([2]).to(device)  # Must be a tensor!
+    #criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     criterion = torch.nn.BCEWithLogitsLoss()
 
@@ -182,47 +144,41 @@ if __name__ == "__main__":
     else:
         summary(model, (1, 400, 400))
 
+    return model, device, criterion, optimizer, scheduler, early_stopping
+
+
+def train(model, device, criterion, optimizer, scheduler, early_stopping, activation_function):
     # Parameters for training
     early_stopping_triggered = False
-    number_of_chuncks= NUMBER_OF_CHUNCKS
-    num_total_epochs = 1
+    number_of_chuncks = NUMBER_OF_CHUNCKS
+    num_total_epochs = 10
     num_epochs_for_each_chunck = 1
-    number_of_chuncks_test = NUMBER_OF_CHUNCKS_TEST
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_VAL
     batch_size = 16
 
+    os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
-    best_model_path = os.path.join(MODEL_DIR, "best_model.pth")  # Path to save the best model
+    best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
 
     for j in range(num_total_epochs):
-        
         if early_stopping_triggered:
             break
-        
-        random.seed(SEED+j)
 
-        train_order = random.sample(range(number_of_chuncks), number_of_chuncks)  
-
+        random.seed(SEED + j)
+        train_order = random.sample(range(number_of_chuncks), number_of_chuncks)
         print("\nOrder of the chuncks for training:", train_order)
-
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
 
-        for i in range(number_of_chuncks): #type: ignore
-            
+        for i in range(number_of_chuncks):  # type: ignore
             if early_stopping_triggered:
                 break
-            
+
             print(f"\nChunck number {i+1} of {number_of_chuncks}")
-
             train_index = train_order[i]
-
             train_loader = load_dataset('train', train_index, device, batch_size)
-
             print("\nLenght of the train dataset:", len(train_loader))
 
-
             for epoch in range(num_epochs_for_each_chunck):
-                
                 start = datetime.now()
                 model.train()
                 train_loss = 0
@@ -237,16 +193,10 @@ if __name__ == "__main__":
                     train_loss += loss.item()
                 train_loss /= len(train_loader)
 
-                if ( epoch+1 == num_epochs_for_each_chunck ):
-
+                if epoch + 1 == num_epochs_for_each_chunck:
                     val_losses = []
-
-                    for k in range (number_of_chuncks_val):
-
+                    for k in range(number_of_chuncks_val):
                         val_loader = load_dataset('val', k, device, batch_size)
-
-                        #print("\nLenght of the val dataset:", len(val_loader))
-
                         model.eval()
                         val_loss = 0
                         with torch.no_grad():
@@ -257,56 +207,71 @@ if __name__ == "__main__":
                                 loss = criterion(outputs, targets)
                                 val_loss += loss.item()
                         val_loss /= len(val_loader)
-                        #print("Val loss:", val_loss)
                         val_losses.append(val_loss)
 
                     total_val_loss = sum(val_losses) / len(val_losses)
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
-                    
+
                     if j >= 1:
-                    
-                        if val_loss < best_val_loss:
-                            best_val_loss = val_loss
-                            #torch.save(model.state_dict(), best_model_path)
-                            #print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
-                        
+                        if total_val_loss < best_val_loss:
+                            best_val_loss = total_val_loss
+                            torch.save(model.state_dict(), best_model_path)
+                            print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
+
                         scheduler.step(val_loss)
                         early_stopping(val_loss)
                         if early_stopping.early_stop:
                             print("Early stopping triggered")
                             early_stopping_triggered = True
                             break
-            
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
 
     # Get the first batch of data
-    first_batch = next(iter(train_loader))
+    loader = load_dataset('val', 0, device, batch_size)
+    first_batch = next(iter(loader))
 
     # Unpack the inputs and targets from the first batch
     inputs, targets = first_batch
-    check_dead_neurons(model, inputs)
+    check_dead_neurons(model, inputs, activation_function)
+    del model
 
-    print("\n-------------------------------------------")
-    print("Training completed")
-    print("-------------------------------------------\n") 
+def test(model_type, device, criterion):
 
-    gc.collect()
+    model = model_type()
+
+    model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+
+    checkpoint = torch.load(model_path, map_location=device)
+
+    # Remove 'module.' prefix from the state dict keys if it's there
+    state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
+
+    # Create a new state dict without the "module." prefix
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        new_key = key.replace('module.', '')  # Remove 'module.' prefix
+        new_state_dict[new_key] = value
+
+    # Now load the cleaned state dict into your model
+    model.load_state_dict(new_state_dict)
+
+    model = model.to(device)
+
+    # Check for multiple GPUs
+    if torch.cuda.device_count() > 1:
+        print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+        model = nn.DataParallel(model)
+
+    summary(model, (1, 400, 400))
 
     test_losses = []
-    i = 0
-
-    for i in range(number_of_chuncks_test): #type: ignore
-
-        print(f"\nTest chunck number {i+1} of {number_of_chuncks_test}: ")
-
-        test_loader = load_dataset('test', i, device, batch_size)
-
+    for i in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
+        print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
+        test_loader = load_dataset('test', i, device, 16)
         print("\nLenght test dataset: ", len(test_loader))
-
         gc.collect()
 
-        # Evaluate on test set
         model.eval()
         test_loss = 0
         with torch.no_grad():
@@ -318,18 +283,50 @@ if __name__ == "__main__":
                 test_loss += loss.item()
         test_loss /= len(test_loader)
         print(f'Test Loss: {test_loss:.4f}')
-
         test_losses.append(test_loss)
 
     total_loss = sum(test_losses) / len(test_losses)
     print("\nTotal loss:", total_loss)
+    return total_loss, model
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='Train and test a neural network model.')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_classic', help='Type of model to use')
+    parser.add_argument('--activation_function', type=str, default='LeakyReLU', help='Activation function to apply to the model')
+    args = parser.parse_args()
+
+    model_type = globals()[args.model_type]
+    activation_function = getattr(nn, args.activation_function)
+
+    # Set environment variables for distributed training
+    os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
+    os.environ['MASTER_PORT'] = '29500'     # This is the port for communication (can choose any available port)
+
+    # Set other environment variables for single-node multi-GPU setup
+    os.environ['RANK'] = '0'       # Process rank (0 for single process)
+    os.environ['WORLD_SIZE'] = '1'  # Total number of processes
+    os.environ['LOCAL_RANK'] = '0'  # Local rank for single-GPU (0 for single GPU)
+
+    # Initialize the distributed process group
+    dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
+
+    gc.collect()
+    random.seed(SEED)
+
+    model, device, criterion, optimizer, scheduler, early_stopping = define_models(model_type, activation_function)
+    
+    train(model, device, criterion, optimizer, scheduler, early_stopping, activation_function)
+
+    criterion_test = torch.nn.BCEWithLogitsLoss()
+
+    total_loss, model_best = test(model_type, device, criterion_test)
 
     # Define the directory where you want to save the model
     os.makedirs(MODEL_DIR, exist_ok=True)
-
-    # Save the model
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
-    torch.save(model.state_dict(), model_save_path)
+    torch.save(model_best.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')

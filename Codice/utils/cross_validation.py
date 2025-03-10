@@ -16,38 +16,6 @@ from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 
-class Autoencoder_classic(nn.Module):
-    def __init__(self): # Constructor method for the autoencoder
-        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride = 2)
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
 if __name__ == "__main__":
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
@@ -78,6 +46,11 @@ if __name__ == "__main__":
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model.to(device)
+
+            # Check for multiple GPUs
+            if torch.cuda.device_count() > 1:
+                print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+                model = nn.DataParallel(model)
             
             num_epochs = 50
             num_chunks = NUMBER_OF_CHUNCKS
@@ -147,3 +120,5 @@ if __name__ == "__main__":
     print("\nFinal Results:")
     for key, value in test_results.items():
         print(f"Batch Size {key[0]}, Learning Rate {key[1]} -> Test Loss: {value:.4f}")
+    
+    dist.destroy_process_group()
