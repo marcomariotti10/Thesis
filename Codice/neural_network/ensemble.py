@@ -129,6 +129,11 @@ def show_predictions(models, device):
                 # Apply sigmoid to the outputs
                 outputs = [sigmoid(output) for output in outputs]
                 avg_output = sigmoid(avg_output)
+
+                # Apply threshold to convert outputs to 0 or 1
+                #threshold = 0.4
+                #outputs = [(output > threshold).float() for output in outputs]
+                #avg_output = (avg_output > threshold).float()
                 
                 predictions.append(avg_output)
                 for idx, output in enumerate(outputs):
@@ -146,6 +151,49 @@ def show_predictions(models, device):
 
                 for i in range(len(grid_maps)):
                     visualize_prediction(predictions[i], gt[i], grid_maps[i], [pred[i] for pred in model_predictions])
+
+def find_best_threshold(models, device):
+    test_losses = [[] for _ in range(len(models) + 1)]
+    criterion = torch.nn.BCELoss()
+    sigmoid = torch.nn.Sigmoid()
+    thresholds = np.arange(0.1, 1.0, 0.1)
+
+    chunk_best_thresholds = []
+    chunk_best_losses = []
+
+    for i in range(NUMBER_OF_CHUNCKS_TEST):
+        print(f"\nTest chunk number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
+
+        test_loader = load_dataset('test', i, device, 16)
+        print("\nLength test dataset: ", len(test_loader))
+
+        best_threshold = 0.5
+        best_loss = float('inf')
+
+        with torch.no_grad():
+            for threshold in thresholds:
+                total_loss = 0
+                for inputs, targets in test_loader:
+                    targets = targets.float()
+                    outputs = [model(inputs) for model in models]
+                    avg_output = sum(outputs) / len(outputs)
+                    avg_output = sigmoid(avg_output)
+                    avg_output = (avg_output > threshold).float()
+                    loss = criterion(avg_output, targets)
+                    total_loss += loss.item()
+                avg_loss = total_loss / len(test_loader)
+                if avg_loss < best_loss:
+                    best_loss = avg_loss
+                    best_threshold = threshold
+
+        chunk_best_thresholds.append(best_threshold)
+        chunk_best_losses.append(best_loss)
+        print(f"Best threshold for chunk {i+1}: {best_threshold}, Loss: {best_loss:.4f}")
+
+    # Find the general best threshold among all chunks
+    general_best_threshold = chunk_best_thresholds[np.argmin(chunk_best_losses)]
+
+    print(f"\nGeneral best threshold: {general_best_threshold}")
 
 if __name__ == '__main__':
 
@@ -174,6 +222,8 @@ if __name__ == '__main__':
     ]
 
     models, device = model_preparation(model_names, models_types)
+
+    #find_best_threshold(models, device)
 
     evaluate(models, device)
 
