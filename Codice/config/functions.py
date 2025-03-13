@@ -14,7 +14,6 @@ from PIL import Image
 import sys
 from sklearn.model_selection import train_test_split
 import importlib
-import torchvision.transforms as transforms
 from torchsummary import summary
 import torch.nn.init as init
 from sklearn.preprocessing import MinMaxScaler

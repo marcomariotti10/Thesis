@@ -46,12 +46,12 @@ def load_dataset_NPY(name, i):
 
     complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
 
-    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
-    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
+    #os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
+    #os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
 
 if __name__ == '__main__':
 
-    shape = (1,400, 400)  # Shape of each sample
+    shape = (1,400,400)  # Shape of each sample
 
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     

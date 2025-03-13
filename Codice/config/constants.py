@@ -1,7 +1,7 @@
 import os
 import platform
 def get_home_directory():
-    if 'microsoft-standard' in platform.release():
+    if platform.system() in 'Linux':
         return r'/mnt/c/Users/marco/Desktop/Tesi'
     else:
         return r'C:/Users/marco/Desktop/Tesi'

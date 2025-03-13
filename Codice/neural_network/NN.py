@@ -38,6 +38,7 @@ from sklearn.preprocessing import MinMaxScaler
 from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
+import open3d.ml.torch as ml3d
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
@@ -326,7 +327,7 @@ if __name__ == "__main__":
     # Define the directory where you want to save the model
     os.makedirs(MODEL_DIR, exist_ok=True)
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f'model_{time}_loss_{total_loss:.4f}.pth'
+    model_name = f'model_{time}_loss_{total_loss:.4f}_{model_type}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
     torch.save(model_best.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')
