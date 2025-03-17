@@ -123,7 +123,7 @@ if __name__ == "__main__":
         files_in_position_removed.append(file)
 
     while True:
-        user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
+        user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
         if user_input == '1':
             preprocessing_data(LIDAR_1_DIRECTORY, NEW_POSITION_LIDAR_1_DIRECTORY, 1)
             break
