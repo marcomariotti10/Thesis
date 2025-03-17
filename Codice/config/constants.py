@@ -10,7 +10,7 @@ HOME = get_home_directory()   # <---- CHANGE THIS
 
 DATA_HOME = HOME + r'/data_map03_0911'
 
-HOME_SAVING = HOME + r'/Codice/Savings'
+HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 

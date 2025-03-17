@@ -265,12 +265,12 @@ def load_dataset(name,i,device, batch):
     random_seed = random.randint(0, 1000)
 
     if name == 'train':
-        order = OrderOption.RANDOM
+        order_op = OrderOption.RANDOM
     else:
-        order = OrderOption.SEQUENTIAL
+        order_op = OrderOption.SEQUENTIAL
     
     train_loader = Loader(complete_path_train, batch_size=batch,
-    num_workers=8, order=order, distributed=True, seed = random_seed, drop_last= True,
+    num_workers=8, order=order_op, distributed=True, seed = random_seed, drop_last= True,
     os_cache=False,
     pipelines={
         'covariate': [NDArrayDecoder(),    # Decodes raw NumPy arrays                    
