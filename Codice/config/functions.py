@@ -63,7 +63,7 @@ def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files,
     for file, file_BB in zip(grid_map_files, grid_map_BB_files):
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        #print(f"Loading {file} and {file_BB}...")
+        print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)

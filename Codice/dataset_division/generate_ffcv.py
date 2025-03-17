@@ -51,7 +51,7 @@ def load_dataset_NPY(name, i):
 
 if __name__ == '__main__':
 
-    shape = (1,400,400)  # Shape of each sample
+    shape = (5,400,400)  # Shape of each sample
 
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     
@@ -69,6 +69,6 @@ if __name__ == '__main__':
 
     i = 0
 
-    for i in range (NUMBER_OF_CHUNCKS_VAL):
+    for i in range (NUMBER_OF_CHUNCKS_TEST):
         
         load_dataset_NPY('val', i)

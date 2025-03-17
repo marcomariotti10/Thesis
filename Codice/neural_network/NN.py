@@ -38,7 +38,6 @@ from sklearn.preprocessing import MinMaxScaler
 from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
-import open3d.ml.torch as ml3d
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
@@ -154,7 +153,7 @@ def train(model, device, criterion, optimizer, scheduler, early_stopping, activa
     number_of_chuncks = NUMBER_OF_CHUNCKS
     num_total_epochs = 10
     num_epochs_for_each_chunck = 1
-    number_of_chuncks_val = NUMBER_OF_CHUNCKS_VAL
+    number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
     batch_size = 16
 
     os.makedirs(MODEL_DIR, exist_ok=True)

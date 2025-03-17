@@ -59,13 +59,13 @@ POSITION_3_VAL = DATA_HOME + r'/7_val/position_val/position_3'
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
-CHUNCKS_DIR = DATA_HOME + r'/chuncks_auto'    
+CHUNCKS_DIR = DATA_HOME + r'/chuncks_pred'    
 
-FFCV_DIR = DATA_HOME + r'/ffcv_auto'
+FFCV_DIR = DATA_HOME + r'/ffcv_pred'
 
 SCALER_DIR = HOME_SAVING + r'/scalers'
 
-MODEL_DIR = HOME_SAVING + r'/models_auto'
+MODEL_DIR = HOME_SAVING + r'/models_pred'
 
 
 # For Show_grid_map
@@ -100,4 +100,3 @@ SEED = 42
 TEST_SIZE = 0.1
 NUMBER_OF_CHUNCKS = 3
 NUMBER_OF_CHUNCKS_TEST = 2
-NUMBER_OF_CHUNCKS_VAL = 2

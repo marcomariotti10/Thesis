@@ -48,31 +48,22 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
     print(f"\nStarting {chunk_type} set generation")
 
     # Shuffle files_lidar and files_BB in the same way
-    combined_files = list(zip(sorted([f for f in os.listdir(lidar_paths[0])]), sorted([f for f in os.listdir(position_paths[0])])))
-    random.shuffle(combined_files)
-    files_lidar_1, files_BB_1 = zip(*combined_files)
-    files_lidar_1 = list(files_lidar_1)
-    files_BB_1 = list(files_BB_1)
+    files_lidar_1 = sorted([f for f in os.listdir(lidar_paths[0])]) 
+    files_BB_1 = sorted([f for f in os.listdir(position_paths[0])])
 
     sum_ped, sum_bic, sum_car = number_of_BB(files_BB_1, position_paths[0])
     print(f"\nSum_complete_{chunk_type}_lidar1: ", sum_ped, sum_bic, sum_car)
     print(f"Average_complete_{chunk_type}_lidar1: ", sum_ped/len(files_BB_1), sum_bic/len(files_BB_1), sum_car/len(files_BB_1))
 
-    combined_files = list(zip(sorted([f for f in os.listdir(lidar_paths[1])]), sorted([f for f in os.listdir(position_paths[1])])))
-    random.shuffle(combined_files)
-    files_lidar_2, files_BB_2 = zip(*combined_files)
-    files_lidar_2 = list(files_lidar_2)
-    files_BB_2 = list(files_BB_2)
+    files_lidar_2 = sorted([f for f in os.listdir(lidar_paths[1])])
+    files_BB_2 = sorted([f for f in os.listdir(position_paths[1])])
 
     sum_ped, sum_bic, sum_car = number_of_BB(files_BB_2, position_paths[1])
     print(f"\nSum_complete_{chunk_type}_lidar2: ", sum_ped, sum_bic, sum_car)
     print(f"Average_complete_{chunk_type}_lidar2: ", sum_ped/len(files_BB_2), sum_bic/len(files_BB_2), sum_car/len(files_BB_2))
 
-    combined_files = list(zip(sorted([f for f in os.listdir(lidar_paths[2])]), sorted([f for f in os.listdir(position_paths[2])])))
-    random.shuffle(combined_files)
-    files_lidar_3, files_BB_3 = zip(*combined_files)
-    files_lidar_3 = list(files_lidar_3)
-    files_BB_3 = list(files_BB_3)
+    files_lidar_3 = sorted([f for f in os.listdir(lidar_paths[2])])
+    files_BB_3 = sorted([f for f in os.listdir(position_paths[2])])
 
     sum_ped, sum_bic, sum_car = number_of_BB(files_BB_3, position_paths[2])
     print(f"\nSum_complete_{chunk_type}_lidar3: ", sum_ped, sum_bic, sum_car)
@@ -154,4 +145,4 @@ if __name__ == '__main__':
 
     generate_chunk([LIDAR_1_VAL, LIDAR_2_VAL, LIDAR_3_VAL], 
                    [POSITION_1_VAL, POSITION_2_VAL, POSITION_3_VAL], 
-                   NUMBER_OF_CHUNCKS_VAL, 'val')
+                   NUMBER_OF_CHUNCKS_TEST, 'val')
