@@ -33,12 +33,24 @@ if __name__ == "__main__":
     sensors_config1 = json.load(f)
     random.seed(SEED)
     
-    f = open(CONFIG_DIR + '/map_03_final/lidar5_map03.json')
+    f = open(CONFIG_DIR + '/map_03_final/lidar2_map03.json')
     sensors_config2 = json.load(f)
     random.seed(SEED)
     
-    f = open(CONFIG_DIR + '/map_03_final/lidar6_map03.json')
+    f = open(CONFIG_DIR + '/map_03_final/lidar3_map03.json')
     sensors_config3 = json.load(f)
+    random.seed(SEED)
+
+    f = open(CONFIG_DIR + '/map_03_final/lidar4_map03.json')
+    sensors_config4 = json.load(f)
+    random.seed(SEED)
+
+    f = open(CONFIG_DIR + '/map_03_final/lidar5_map03.json')
+    sensors_config5 = json.load(f)
+    random.seed(SEED)
+
+    f = open(CONFIG_DIR + '/map_03_final/lidar6_map03.json')
+    sensors_config6 = json.load(f)
     random.seed(SEED)
 
     print("Connecting to server...")

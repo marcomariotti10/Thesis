@@ -20,6 +20,7 @@ from utility import *
 from local_sim_utility import *
 from spawn_objects import *
 
+
 LOCAL = True
 SEED = 42
 PORT = 2000
@@ -69,7 +70,7 @@ if __name__ == "__main__":
         threads = []
         sensors = []
         static = []
-        spawn_static_sensors(sensors_config1, sensors, static, world, LOCAL)
+        spawn_static_sensors(sensors_config4, sensors, static, world, LOCAL)
  
         
         # -------------------
@@ -140,7 +141,7 @@ if __name__ == "__main__":
         cv2.destroyAllWindows()
 
         if LOCAL:
-            settings=world.settings()
+            settings=world.get_settings()
             settings.synchronous_mode = False
             settings.no_rendering_mode = False
             settings.fixed_delta_seconds = None

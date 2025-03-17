@@ -38,7 +38,6 @@ from sklearn.preprocessing import MinMaxScaler
 from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
-import open3d.ml.torch as ml3d
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
