@@ -174,24 +174,16 @@ def visualize_ply_with_bounding_boxes(ply_directory, csv_directory, specific_ply
 if __name__ == "__main__":
 
     while True:
-        user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3: ")
-        if user_input == '1':
-            path_lidar = LIDAR_1_DIRECTORY
-            new_position_path = NEW_POSITION_LIDAR_1_DIRECTORY
-            lidar_file = LIDAR_FILE_1
-            break
-        elif user_input == '2':
-            path_lidar = LIDAR_2_DIRECTORY
-            new_position_path = NEW_POSITION_LIDAR_2_DIRECTORY
-            lidar_file = LIDAR_FILE_2
-            break
-        elif user_input == '3':
-            path_lidar = LIDAR_3_DIRECTORY
-            new_position_path = NEW_POSITION_LIDAR_3_DIRECTORY
-            lidar_file = LIDAR_FILE_3
+        user_input = input("Enter the number of the lidar: ")
+        if (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
+
+            # Replace 'X' in the paths with the lidar_number
+            path_lidar = LIDAR_X_DIRECTORY.replace('X', user_input)
+            new_position_path = NEW_POSITION_LIDAR_X_DIRECTORY.replace('X', user_input)
+            lidar_file = LIDAR_FILE_X[int(user_input)-1]
             break
         else:
-            print("Invalid input. Please enter 1, 2, or 3.")
+            print("Invalid input.")
 
     visualize_ply_with_bounding_boxes(path_lidar, new_position_path, lidar_file)
 

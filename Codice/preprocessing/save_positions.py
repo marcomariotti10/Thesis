@@ -12,6 +12,10 @@ import pandas as pd
 from multiprocessing import Pool
 
 def preprocessing_data(path_lidar, new_positions_lidar_output, lidar_number):
+    # Replace 'X' in the paths with the lidar_number
+    path_lidar = path_lidar.replace('X', str(lidar_number))
+    new_positions_lidar_output = new_positions_lidar_output.replace('X', str(lidar_number))
+
     files_in_lidar_output = sorted([f for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
     files_in_lidar_output_removed = []
     for file in files_in_lidar_output:
@@ -95,18 +99,9 @@ def modify_position_file(args):
     cols_to_modify = df.columns[2:]
 
     # Apply the transformations (number_lidar = 1 for lidar1, 2 for lidar2, 3 for lidar3)
-    if number_lidar == 1:
-        df[cols_to_modify[0]] = df[cols_to_modify[0]] + 70.15
-        df[cols_to_modify[1]] = df[cols_to_modify[1]] + 11.50
-        df[cols_to_modify[2]] = df[cols_to_modify[2]] - 6.0
-    elif number_lidar == 2:
-        df[cols_to_modify[0]] = df[cols_to_modify[0]] + 100.59
-        df[cols_to_modify[1]] = df[cols_to_modify[1]] - 27.46
-        df[cols_to_modify[2]] = df[cols_to_modify[2]] - 6.0
-    elif number_lidar == 3:
-        df[cols_to_modify[0]] = df[cols_to_modify[0]] + 96.83
-        df[cols_to_modify[1]] = df[cols_to_modify[1]] + 6.31
-        df[cols_to_modify[2]] = df[cols_to_modify[2]] - 6.0
+    df[cols_to_modify[0]] = df[cols_to_modify[0]] + NEW_POSITIONS_OFFSETS[number_lidar-1][0]
+    df[cols_to_modify[1]] = df[cols_to_modify[1]] + NEW_POSITIONS_OFFSETS[number_lidar-1][1]
+    df[cols_to_modify[2]] = df[cols_to_modify[2]] + NEW_POSITIONS_OFFSETS[number_lidar-1][2]
 
     df.to_csv(csv_path, index=False)
 
@@ -124,21 +119,13 @@ if __name__ == "__main__":
 
     while True:
         user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
-        if user_input == '1':
-            preprocessing_data(LIDAR_1_DIRECTORY, NEW_POSITION_LIDAR_1_DIRECTORY, 1)
+        if user_input == 'all':
+            for i in range(NUMBER_OF_SENSORS):
+                preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, i+1)
+                print("lidar" + str(i+1) + " done")
             break
-        elif user_input == '2':
-            preprocessing_data(LIDAR_2_DIRECTORY, NEW_POSITION_LIDAR_2_DIRECTORY, 2)
-            break
-        elif user_input == '3':
-            preprocessing_data(LIDAR_3_DIRECTORY, NEW_POSITION_LIDAR_3_DIRECTORY, 3)
-            break
-        elif user_input == '4':
-            preprocessing_data(LIDAR_1_DIRECTORY, NEW_POSITION_LIDAR_1_DIRECTORY, 1)
-            print("Lidar 1 done")
-            preprocessing_data(LIDAR_2_DIRECTORY, NEW_POSITION_LIDAR_2_DIRECTORY, 2)
-            print("Lidar 2 done")
-            preprocessing_data(LIDAR_3_DIRECTORY, NEW_POSITION_LIDAR_3_DIRECTORY, 3)
+        elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
+            preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, int(user_input))
             break
         else:
-            print("Invalid input. Please enter 1, 2, 3 or 4.")
+            print("Invalid input.")

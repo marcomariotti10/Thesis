@@ -26,9 +26,6 @@ def spawn_static_sensors(sensors_config, sensor_list, static_list, world : carla
             complete_name = sensors_home["name"] + "/" + params["role_name"]
             print(f"Creating {complete_name}...")
 
-            #Create the folder
-            os.makedirs(LIDAR_DIRECTORY + f'/lidar_output_{complete_name}', exist_ok=True)
-
             sensor_trans = carla.Transform(carla.Location(**sensor["location"]), carla.Rotation(**sensor["rotation"]))
             bp = bp_lib.find(sensor["bp_type"])
             if(sensor["bp_type"].startswith("sensor.camera")):

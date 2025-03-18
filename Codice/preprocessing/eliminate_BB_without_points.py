@@ -104,8 +104,12 @@ def process_file(args):
     
     eliminate_lines_from_file(BB_path, new_path_output, BB_file, bounding_boxes_without_points)
 
-def eliminate_BB(path_lidar, path_BB, new_path_output):
-    """Eliminate bounding boxes without any points"""
+def eliminate_BB(path_lidar, path_BB, new_path_output, lidar_number):
+    
+    # Replace 'X' in the paths with the lidar_number
+    path_lidar = path_lidar.replace('X', str(lidar_number))
+    path_BB = path_BB.replace('X', str(lidar_number))
+    new_path_output = new_path_output.replace('X', str(lidar_number))
 
     # Get the list of files in the specified folder
     lidar_files = sorted([f for f in os.listdir(path_lidar) if f.endswith('.csv')])
@@ -120,35 +124,16 @@ def eliminate_BB(path_lidar, path_BB, new_path_output):
         pool.map(process_file, [(path_lidar, path_BB, new_path_output, lidar_file, BB_file) for lidar_file, BB_file in zip(lidar_files, BB_files)])
 
 if __name__ == "__main__":
-    path_lidar_1 = LIDAR_1_GRID_DIRECTORY
-    path_1_grid = NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY
-    new_path_output1 = POSITION_LIDAR_1_GRID_NO_BB
-
-    path_lidar_2 = LIDAR_2_GRID_DIRECTORY
-    path_2_grid = NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY
-    new_path_output2 = POSITION_LIDAR_2_GRID_NO_BB
-
-    path_lidar_3 = LIDAR_3_GRID_DIRECTORY
-    path_3_grid = NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY
-    new_path_output3 = POSITION_LIDAR_3_GRID_NO_BB
 
     while True:
-        user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
-        if user_input == '1':
-            eliminate_BB(path_lidar_1, path_1_grid, new_path_output1)
+        user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
+        if user_input == 'all':
+            for i in range(NUMBER_OF_SENSORS):
+                eliminate_BB(LIDAR_X_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID_NO_BB, i+1)
+                print("lidar" + str(i+1) + " done")
             break
-        elif user_input == '2':
-            eliminate_BB(path_lidar_2, path_2_grid, new_path_output2)
-            break
-        elif user_input == '3':
-            eliminate_BB(path_lidar_3, path_3_grid, new_path_output3)
-            break
-        elif user_input == '4':
-            eliminate_BB(path_lidar_1, path_1_grid, new_path_output1)
-            print("Lidar 1 done")
-            eliminate_BB(path_lidar_2, path_2_grid, new_path_output2)
-            print("Lidar 2 done")
-            eliminate_BB(path_lidar_3, path_3_grid, new_path_output3)
+        elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
+            eliminate_BB(LIDAR_X_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID_NO_BB, int(user_input))
             break
         else:
-            print("Invalid input. Please enter 1, 2, 3 or 4.")
+            print("Invalid input.")

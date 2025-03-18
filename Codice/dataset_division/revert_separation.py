@@ -38,16 +38,28 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_fin
 
     move_file(files_lidar, files_BB, lidar_path_initial, BB_path_initial, lidar_path_final, BB_path_final)
 
-def revert(lidar1_path, position1_path, lidar2_path, position2_path, lidar3_path, position3_path):
-    print("Reverting Lidar1")
-    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, lidar1_path, position1_path)    
-    print("Reverting Lidar2")
-    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, lidar2_path, position2_path)
-    print("Reverting Lidar3")
-    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, lidar3_path, position3_path)
+def revert(all_lidar_path, all_BB_path):
+    for i in range(1, NUMBER_OF_SENSORS+1):
+        print(f"Reverting lidar {i}")
+        lidar_grid_path  = LIDAR_X_GRID_DIRECTORY.replace("X", str(i))
+        BB_grid_path = POSITION_LIDAR_X_GRID_NO_BB.replace("X", str(i))
+        main_loop(lidar_grid_path, BB_grid_path, all_lidar_path[i-1], all_BB_path[i-1])    
 
 if __name__=="__main__":
 
-    revert(LIDAR_1_TEST, POSITION_1_TEST, LIDAR_2_TEST, POSITION_2_TEST, LIDAR_3_TEST, POSITION_3_TEST) #revert test
-    revert(LIDAR_1_VAL, POSITION_1_VAL, LIDAR_2_VAL, POSITION_2_VAL, LIDAR_3_VAL, POSITION_3_VAL) #revert val
-    
+    all_lidar_test_path = []
+    all_BB_test_path = []
+
+    all_lidar_val_path = []
+    all_BB_val_path = []
+
+    for i in range(1, NUMBER_OF_SENSORS+1):
+
+        all_lidar_test_path.append(LIDAR_X_TEST.replace("X", str(i)))
+        all_BB_test_path.append(POSITION_X_TEST.replace("X", str(i)))
+
+        all_lidar_val_path.append(LIDAR_X_VAL.replace("X", str(i)))
+        all_BB_val_path.append(POSITION_X_VAL.replace("X", str(i)))
+
+    revert(all_lidar_test_path, all_BB_test_path) #revert test
+    revert(all_lidar_val_path, all_BB_val_path) #revert val

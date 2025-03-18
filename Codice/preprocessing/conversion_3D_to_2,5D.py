@@ -46,7 +46,12 @@ def process_file(i,file, ply_directory, folder_path):
     file_path = os.path.join(folder_path, filename)
     np.savetxt(file_path, positions, delimiter=",", fmt=['%d', '%d', '%.2f'])
 
-def generate_grid_map(ply_directory, folder_path):
+def generate_grid_map(ply_directory, folder_path, lidar_number):
+
+    # Replace 'X' in the paths with the lidar_number
+    ply_directory = ply_directory.replace('X', str(lidar_number))
+    folder_path = folder_path.replace('X', str(lidar_number))
+
     ply_files = sorted([f for f in os.listdir(ply_directory) if f.endswith('.ply')])
 
     if not os.path.exists(folder_path):
@@ -56,36 +61,16 @@ def generate_grid_map(ply_directory, folder_path):
         pool.starmap(process_file, [(i,file, ply_directory, folder_path) for i,file in enumerate(ply_files)])
 
 if __name__ == "__main__":
-    path_lidar_1 = LIDAR_1_DIRECTORY
-    new_path_1_grid = LIDAR_1_GRID_DIRECTORY
-
-    path_lidar_2 = LIDAR_2_DIRECTORY
-    new_path_2_grid = LIDAR_2_GRID_DIRECTORY
-
-    path_lidar_3 = LIDAR_3_DIRECTORY
-    new_path_3_grid = LIDAR_3_GRID_DIRECTORY
 
     while True:
-        user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
-        if user_input == '1':
-            generate_grid_map(path_lidar_1, new_path_1_grid)
+        user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
+        if user_input == 'all':
+            for i in range(NUMBER_OF_SENSORS):
+                generate_grid_map(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, i+1)
+                print("lidar" + str(i+1) + " done")
             break
-        elif user_input == '2':
-            generate_grid_map(path_lidar_2, new_path_2_grid)
-            break
-        elif user_input == '3':
-            generate_grid_map(path_lidar_3, new_path_3_grid)
-            break
-        elif user_input == '4':
-            generate_grid_map(path_lidar_1, new_path_1_grid)
-            print("Lidar 1 done")
-            generate_grid_map(path_lidar_2, new_path_2_grid)
-            print("Lidar 2 done")
-            generate_grid_map(path_lidar_3, new_path_3_grid)
+        elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
+            generate_grid_map(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, int(user_input))
             break
         else:
-            print("Invalid input. Please enter 1, 2, 3 or 4.")
-
-
-
-
+            print("Invalid input.")

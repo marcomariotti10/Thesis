@@ -169,42 +169,30 @@ def process_csv_file(args):
         writer.writeheader()
         writer.writerows(data)
 
-def convert_BB_into_25D(BB_path, folder_path):
+def convert_BB_into_25D(BB_path, folder_path, lidar_number):
+
+    # Replace 'X' in the paths with the lidar_number
+    BB_path = BB_path.replace('X', str(lidar_number))
+    folder_path = folder_path.replace('X', str(lidar_number))
+
     csv_files = sorted([f for f in os.listdir(BB_path) if f.endswith('.csv')])
     with Pool() as pool:
         pool.map(process_csv_file, [(BB_path, file, folder_path) for file in csv_files])
 
 if __name__ == "__main__":
-    path_lidar_1_positions = NEW_POSITION_LIDAR_1_DIRECTORY
-    path_BB_1_grid = NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY
-
-    path_lidar_3_positions = NEW_POSITION_LIDAR_3_DIRECTORY
-    path_BB_3_grid = NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY
-
-    path_lidar_2_positions = NEW_POSITION_LIDAR_2_DIRECTORY
-    path_BB_2_grid = NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY
 
     while True:
-        user_input = input("Enter 1 for lidar1, 2 for lidar2, 3 for lidar3, 4 for all: ")
-        if user_input == '1':
-            convert_BB_into_25D(path_lidar_1_positions, path_BB_1_grid)
+        user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
+        if user_input == 'all':
+            for i in range(NUMBER_OF_SENSORS):
+                convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, i+1)
+                print("lidar" + str(i+1) + " done")
             break
-        elif user_input == '2':
-            convert_BB_into_25D(path_lidar_2_positions, path_BB_2_grid)
-            break
-        elif user_input == '3':
-            convert_BB_into_25D(path_lidar_3_positions, path_BB_3_grid)
-            break
-        elif user_input == '4':
-            convert_BB_into_25D(path_lidar_1_positions, path_BB_1_grid)
-            print("Lidar 1 done")
-            convert_BB_into_25D(path_lidar_2_positions, path_BB_2_grid)
-            print("Lidar 2 done")
-            convert_BB_into_25D(path_lidar_3_positions, path_BB_3_grid)
+        elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
+            convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, int(user_input))
             break
         else:
-            print("Invalid input. Please enter 1, 2, 3 or 4.")
-
+            print("Invalid input.")
 
 
 

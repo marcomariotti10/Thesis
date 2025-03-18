@@ -75,12 +75,17 @@ def main_loop(lidar_path_initial, BB_path_initial, lidar_path_final_test, BB_pat
 
 if __name__=="__main__":
 
-    print("Lidar1")
-    main_loop(LIDAR_1_GRID_DIRECTORY, POSITION_LIDAR_1_GRID_NO_BB, LIDAR_1_TEST, POSITION_1_TEST, LIDAR_1_VAL, POSITION_1_VAL)
-    print("Lidar2")
-    main_loop(LIDAR_2_GRID_DIRECTORY, POSITION_LIDAR_2_GRID_NO_BB, LIDAR_2_TEST, POSITION_2_TEST, LIDAR_2_VAL, POSITION_2_VAL)
-    print("Lidar3")
-    main_loop(LIDAR_3_GRID_DIRECTORY, POSITION_LIDAR_3_GRID_NO_BB, LIDAR_3_TEST, POSITION_3_TEST, LIDAR_3_VAL, POSITION_3_VAL)
+    for i in range(1, NUMBER_OF_SENSORS+1):
+
+        print(f"Lidar{i}")
+        lidar_path = LIDAR_X_GRID_DIRECTORY.replace("X", str(i))
+        position_path = POSITION_LIDAR_X_GRID_NO_BB.replace("X", str(i))
+        lidar_test_path = LIDAR_X_TEST.replace("X", str(i))
+        position_test_path = POSITION_X_TEST.replace("X", str(i))
+        lidar_val_path = LIDAR_X_VAL.replace("X", str(i))
+        position_val_path = POSITION_X_VAL.replace("X", str(i))
+        main_loop(lidar_path, position_path, lidar_test_path, position_test_path, lidar_val_path, position_val_path)
+        print("\n")
 
     
 

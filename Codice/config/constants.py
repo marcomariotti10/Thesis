@@ -14,47 +14,23 @@ HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 
-LIDAR_1_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidar1/lidar'
-LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidar1_grid'
+NUMBER_OF_SENSORS = 3
 
-LIDAR_2_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidar2/lidar'
-LIDAR_2_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidar2_grid'
-
-LIDAR_3_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidar3/lidar'
-LIDAR_3_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidar3_grid'
+LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
+LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'
 
 POSITIONS_DIRECTORY = DATA_HOME + r'/1_original/position'
 LIDAR_DIRECTORY = DATA_HOME + r'/1_original'
 
-NEW_POSITION_LIDAR_1_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidar1'
-NEW_POSITIONS_LIDAR_1_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidar1_grid'
-POSITION_LIDAR_1_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidar1_grid_no_BB'
+NEW_POSITION_LIDAR_X_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidarX'
+NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
+POSITION_LIDAR_X_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidarX_grid_no_BB'
 
-NEW_POSITION_LIDAR_2_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidar2'
-NEW_POSITIONS_LIDAR_2_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidar2_grid'
-POSITION_LIDAR_2_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidar2_grid_no_BB'
+LIDAR_X_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_X'
+POSITION_X_TEST = DATA_HOME + r'/6_test/position_test/position_X'
 
-NEW_POSITION_LIDAR_3_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidar3'
-NEW_POSITIONS_LIDAR_3_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidar3_grid'
-POSITION_LIDAR_3_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidar3_grid_no_BB'
-
-LIDAR_1_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_1'
-POSITION_1_TEST = DATA_HOME + r'/6_test/position_test/position_1'
-
-LIDAR_2_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_2'
-POSITION_2_TEST = DATA_HOME + r'/6_test/position_test/position_2'
-
-LIDAR_3_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_3'
-POSITION_3_TEST = DATA_HOME + r'/6_test/position_test/position_3'
-
-LIDAR_1_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_1'
-POSITION_1_VAL = DATA_HOME + r'/7_val/position_val/position_1'
-
-LIDAR_2_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_2'
-POSITION_2_VAL = DATA_HOME + r'/7_val/position_val/position_2'
-
-LIDAR_3_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_3'
-POSITION_3_VAL = DATA_HOME + r'/7_val/position_val/position_3'
+LIDAR_X_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_X'
+POSITION_X_VAL = DATA_HOME + r'/7_val/position_val/position_X'
 
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
@@ -67,6 +43,8 @@ SCALER_DIR = HOME_SAVING + r'/scalers'
 
 MODEL_DIR = HOME_SAVING + r'/models_pred'
 
+# For save_positions
+NEW_POSITIONS_OFFSETS = [(70.15, 11.50, -6.0), (100.59, -27.46, -6.0), (96.83, 6.31, -6.0), (54.05, -41.25, -6.0), (62.50, -14.60, -6.0), (36.35, -7.55, -6.0)]
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0
@@ -84,9 +62,7 @@ FLOOR_HEIGHT = -100
 RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_1 = 450
-LIDAR_FILE_2 = 100
-LIDAR_FILE_3 = 100
+LIDAR_FILE_X = [450, 100, 100]
 
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2
