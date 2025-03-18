@@ -6,6 +6,7 @@ from visualization import *
 import os
 import numpy as np
 import csv
+import ast
 from multiprocessing import Pool
 
 def extract_smaller_grid(grid_map_recreate, positions, label):
@@ -57,9 +58,7 @@ def load_bounding_box(csv_file):
         reader = csv.reader(file)
         next(reader)  # Skip header
         for row in reader:
-            # Extract the 3D coordinates of the 8 bounding box vertices
-            vertices = [
-                [float(row[i]), float(row[i + 1]), float(row[i + 2])] for i in range(2, 12, 3)]
+            vertices = [row[2]]
             bounding_box_vertices.append(vertices)
             labels.append(row[1])
     bounding_boxes = np.array(bounding_box_vertices)
@@ -90,16 +89,26 @@ def process_file(args):
 
     # Loop through each bounding box and select the ones with too few points
     for i, bb in enumerate(bounding_box_vertices):
-        smaller_grid = extract_smaller_grid(grid_map_recreate, bb, labels[i])
-        non_zero_indices = np.nonzero(smaller_grid > MIN_HEIGHT + HEIGHT_OFFSET)
+        count = 0
+        grid_map_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float)
+        
+        string_data = bb[0]
+        # Safely evaluate the string to convert it into a list of tuples
+        pairs = ast.literal_eval(string_data)
+        
+        for pair in pairs:
+            col, row = pair
+            if grid_map_recreate[int(row), int(col)] > MIN_HEIGHT + HEIGHT_OFFSET:
+                count += 1 
+        
         if (labels[i] == "car"):
-            if len(non_zero_indices[0]) < NUM_MIN_POINTS_VEHICLE:
+            if count < NUM_MIN_POINTS_VEHICLE:
                 bounding_boxes_without_points.append(i)
         elif (labels[i] == "bicycle"): 
-            if len(non_zero_indices[0]) < NUM_MIN_POINTS_BICYCLE:
+            if count < NUM_MIN_POINTS_BICYCLE:
                 bounding_boxes_without_points.append(i)
         else:
-            if len(non_zero_indices[0]) < NUM_MIN_POINTS_PEDESTRIAN:
+            if count < NUM_MIN_POINTS_PEDESTRIAN:
                 bounding_boxes_without_points.append(i)
     
     eliminate_lines_from_file(BB_path, new_path_output, BB_file, bounding_boxes_without_points)

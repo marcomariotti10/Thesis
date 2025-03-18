@@ -105,6 +105,7 @@ def fill_polygon(grid_map, vertices, height):
     
     # Convert vertices to integer coordinates
     vertices_int = np.array(vertices[:, :2], dtype=np.int32)
+    #print("vertices_int", vertices_int)
     
     # Define different orders to try
     orders = [

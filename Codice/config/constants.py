@@ -51,6 +51,7 @@ MIN_HEIGHT = -60.0
 
 # For Conversion_BB_into_2,5D
 REDUCING_RANGE = 0.5 # It can't be set too low because can be generated a bounnfing box with only two points (because we also want the bounging box of cars half out the grid)
+INCREASE_GRID_RANGE = 200
 
 # For Conversion_3D_to_2,5D and Conversion_BB_into_2,5D
 GRID_RESOLUTION = 0.1
@@ -62,12 +63,12 @@ FLOOR_HEIGHT = -100
 RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_X = [450, 100, 100]
+LIDAR_FILE_X = [370, 100, 562]
 
 # For Eliminate_BB_without_points
 INCREMENT_BB_PEDESTRIAN = 2
-NUM_MIN_POINTS_VEHICLE = 10
-NUM_MIN_POINTS_BICYCLE = 5
+NUM_MIN_POINTS_VEHICLE = 5
+NUM_MIN_POINTS_BICYCLE = 3
 NUM_MIN_POINTS_PEDESTRIAN = 1
 HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 

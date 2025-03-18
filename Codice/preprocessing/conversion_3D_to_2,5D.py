@@ -11,6 +11,7 @@ from multiprocessing import Pool
 
 def process_file(i,file, ply_directory, folder_path):
     # Extract file
+    #print(f"Processing file {file}...")
     ply_path = os.path.join(ply_directory, file)
     pcd = o3d.io.read_point_cloud(ply_path)
     points = np.asarray(pcd.points)

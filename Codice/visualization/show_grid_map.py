@@ -70,12 +70,12 @@ def create_bounding_box_lines(vertices):
 def show_grid_map(grid_map_directory, BB_directory, specific_csv):
     # Load point cloud from .ply file
     grid_map_files = sorted([f for f in os.listdir(grid_map_directory) if f.endswith('.csv')])
-    BB_files = sorted([f for f in os.listdir(BB_directory) if f.endswith('.csv')])
+    #BB_files = sorted([f for f in os.listdir(BB_directory) if f.endswith('.csv')])
 
     if (specific_csv >= 0 and specific_csv < len(grid_map_files)):
         print(f"The index is: {specific_csv}")
         grid_map_files = grid_map_files[specific_csv:]
-        BB_files = BB_files[specific_csv:]
+        #BB_files = BB_files[specific_csv:]
     else:
         print(f"ERROR : {specific_csv} is not correct")
 
@@ -96,19 +96,19 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
             col, row, height = pos
             grid_map_recreate[int(row), int(col)] = height
 
-        BB_file = BB_files[i]
-        BB_path = os.path.join(BB_directory, BB_file)
-        print(f"Loading {BB_file}...")
-        bounding_box_vertices = load_bounding_box(BB_path)
+        #BB_file = BB_files[i]
+        #BB_path = os.path.join(BB_directory, BB_file)
+        #print(f"Loading {BB_file}...")
+        #bounding_box_vertices = load_bounding_box(BB_path)
 
         # Create Open3D Visualizer
         vis = o3d.visualization.Visualizer()
         vis.create_window(window_name='Open3D', width=1920, height=1200, left=0, top=80, visible=True)
 
         # Create a LineSet (bounding box)
-        for vertices in bounding_box_vertices:
-            box_lines = create_bounding_box_lines(vertices)
-            vis.add_geometry(box_lines)
+        #for vertices in bounding_box_vertices:
+            #box_lines = create_bounding_box_lines(vertices)
+            #vis.add_geometry(box_lines)
 
         # Create point cloud from grid map
         point_cloud = create_point_cloud_from_grid_map(grid_map_recreate)

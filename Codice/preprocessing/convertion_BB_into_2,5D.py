@@ -56,8 +56,8 @@ def get_rotation_matrix(pitch, roll, yaw):
 def process_csv_file(args):
     BB_path, file, folder_path = args
     grid_resolution = GRID_RESOLUTION
-    x_min = X_MIN
-    y_min = Y_MIN
+    x_min = X_MIN + (int(INCREASE_GRID_RANGE/2)*grid_resolution)
+    y_min = Y_MIN + (int(INCREASE_GRID_RANGE/2)*grid_resolution)
     x_range = X_RANGE
     y_range = Y_RANGE
 
@@ -99,7 +99,7 @@ def process_csv_file(args):
         for ver in vertices:
             if ((ver[0] > X_MIN - REDUCING_RANGE) or (ver[0] < -X_MIN + REDUCING_RANGE) or (ver[1] > Y_MIN - REDUCING_RANGE) or (ver[1] < -Y_MIN + REDUCING_RANGE)):
                 outside_count += 1
-                if outside_count >= 3:
+                if outside_count >= 4:
                     all_in_range = False
                     break
             if ((ver[0] != x_old) or (ver[1] != y_old) or (ver[2] != z_old)):
@@ -109,11 +109,6 @@ def process_csv_file(args):
             else:
                 all_same = True
                 break
-        
-        # This condition to eliminate all the bounding box partially outside the grid that are also rotated (too complex to manage)
-        if outside_count == 1 or outside_count == 2:
-            if ((vertices[0][0] >= vertices[1][0] + RANGE_FOR_ROTATED_VEHICLES) or (vertices[0][0] <= vertices[1][0] - RANGE_FOR_ROTATED_VEHICLES)) and ((vertices[0][1] >= vertices[1][1] + RANGE_FOR_ROTATED_VEHICLES) or (vertices[0][1] <= vertices[1][1] - RANGE_FOR_ROTATED_VEHICLES)):
-                all_in_range = False
 
         if all_in_range and not all_same:
             bounding_box_vertices.append(vertices)
@@ -121,24 +116,27 @@ def process_csv_file(args):
             bounding_box_labels.append(row[1])
 
     for vertic in bounding_box_vertices:
-        grid_map = np.full((y_range, x_range), FLOOR_HEIGHT, dtype=float)
+        grid_map = np.full((y_range + INCREASE_GRID_RANGE, x_range + INCREASE_GRID_RANGE), 0, dtype=float)
+        grid_vertices = []
         for point in vertic:
             x, y, z = point
             x_idx = int((x - x_min) / grid_resolution)
-            if x_idx >= 0:
-                x_idx = -1
-            if x_idx < -X_RANGE:
-                x_idx = 0
             y_idx = int((y - y_min) / grid_resolution)
-            if y_idx >= 0:
-                y_idx = -1
-            if y_idx < -Y_RANGE:
-                y_idx = 0
-            grid_map[y_idx, x_idx] = max(grid_map[y_idx, x_idx], (z / grid_resolution))
+            grid_map[y_idx, x_idx] = z
+        
+        grid_vertices = np.nonzero(grid_map != 0)
+        positions_array = np.column_stack((grid_vertices[1], grid_vertices[0]))
+        positions = [tuple(row) for row in positions_array.tolist()]
+        position = np.array(positions)
+        #print(f"position: {position}")
+        height_BB = 1  # Assuming all vertices have the same height
+        fill_polygon(grid_map, position, height_BB)
 
-        non_zero_indices = np.nonzero(grid_map != FLOOR_HEIGHT)
-        values = grid_map[non_zero_indices]
-        positions_array = np.column_stack((non_zero_indices[0], non_zero_indices[1], values))
+        increase_grid_range_half = int(INCREASE_GRID_RANGE / 2)
+        smaller_grid = grid_map[(increase_grid_range_half):(increase_grid_range_half + y_range), (increase_grid_range_half):(increase_grid_range_half + x_range)]
+
+        non_zero_indices = np.nonzero(smaller_grid != 0)
+        positions_array = np.column_stack((non_zero_indices[1], non_zero_indices[0]))
         positions = [tuple(row) for row in positions_array.tolist()]
         all_positions.append(positions)
 
@@ -146,10 +144,7 @@ def process_csv_file(args):
         {
             "actor_id": actor_id,
             "label": label,
-            "x1": vert[0][1], "y1": vert[0][0], "h1": f"{vert[0][2]:.2f}",
-            "x2": vert[1][1], "y2": vert[1][0], "h2": f"{vert[1][2]:.2f}",
-            "x3": vert[2][1], "y3": vert[2][0], "h3": f"{vert[2][2]:.2f}",
-            "x4": vert[3][1], "y4": vert[3][0], "h4": f"{vert[3][2]:.2f}"
+            "points": vert
         }
         for actor_id, label, vert in zip(bounding_box_ids, bounding_box_labels, all_positions)
     ]
@@ -160,10 +155,7 @@ def process_csv_file(args):
     with open(path, 'w', newline='') as file:
         fieldnames = [
             'actor_id', 'label',
-            'x1', 'y1', 'h1',
-            'x2', 'y2', 'h2',
-            'x3', 'y3', 'h3',
-            'x4', 'y4', 'h4'
+            'points'
         ]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
