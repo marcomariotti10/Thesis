@@ -44,7 +44,7 @@ SCALER_DIR = HOME_SAVING + r'/scalers'
 MODEL_DIR = HOME_SAVING + r'/models_pred'
 
 # For save_positions
-NEW_POSITIONS_OFFSETS = [(70.15, 11.50, -6.0), (100.59, -27.46, -6.0), (96.83, 6.31, -6.0), (54.05, -41.25, -6.0), (62.50, -14.60, -6.0), (36.35, -7.55, -6.0)]
+NEW_POSITIONS_OFFSETS = [(70.15, 11.50, -6.0), (100.59, -27.46, -6.0), (96.83, 6.31, -6.0), (65.3, -0.55, -6.0), (73.50, -9.25, -6.0), (85.65, -27.85, -6.0)]
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0

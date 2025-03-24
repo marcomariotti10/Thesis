@@ -15,11 +15,11 @@ import random
 import json
 import threading
 import subprocess
+import argparse
 
 from utility import *
 from local_sim_utility import *
 from spawn_objects import *
-
 
 LOCAL = True
 SEED = 42
@@ -29,28 +29,14 @@ IP = "127.0.0.1"
 
 if __name__ == "__main__":
 
-    f = open(CONFIG_DIR + '/map_03_final/lidar1_map03.json')
-    sensors_config1 = json.load(f)
-    random.seed(SEED)
-    
-    f = open(CONFIG_DIR + '/map_03_final/lidar2_map03.json')
-    sensors_config2 = json.load(f)
-    random.seed(SEED)
-    
-    f = open(CONFIG_DIR + '/map_03_final/lidar3_map03.json')
-    sensors_config3 = json.load(f)
-    random.seed(SEED)
+    parser = argparse.ArgumentParser(description='Generate a sensor in the simulation.')
+    parser.add_argument('--number', type=str, default='1', help='Number of the sensor to generate')
+    args = parser.parse_args()
 
-    f = open(CONFIG_DIR + '/map_03_final/lidar4_map03.json')
-    sensors_config4 = json.load(f)
-    random.seed(SEED)
+    sensor_number = globals()[args.number]
 
-    f = open(CONFIG_DIR + '/map_03_final/lidar5_map03.json')
-    sensors_config5 = json.load(f)
-    random.seed(SEED)
-
-    f = open(CONFIG_DIR + '/map_03_final/lidar6_map03.json')
-    sensors_config6 = json.load(f)
+    f = open(CONFIG_DIR + f'/map_03_final/lidar{sensor_number}_map03.json')
+    sensors_config = json.load(f)
     random.seed(SEED)
 
     print("Connecting to server...")
@@ -70,7 +56,7 @@ if __name__ == "__main__":
         threads = []
         sensors = []
         static = []
-        spawn_static_sensors(sensors_config5, sensors, static, world, LOCAL)
+        spawn_static_sensors(sensors_config, sensors, static, world, LOCAL)
  
         
         # -------------------
@@ -141,7 +127,7 @@ if __name__ == "__main__":
         cv2.destroyAllWindows()
 
         if LOCAL:
-            settings=world.get_settings()
+            settings=world.settings()
             settings.synchronous_mode = False
             settings.no_rendering_mode = False
             settings.fixed_delta_seconds = None

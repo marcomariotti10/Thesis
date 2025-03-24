@@ -85,18 +85,6 @@ if __name__ == "__main__":
 
     args = argparser.parse_args()
 
-    f = open(CONFIG_DIR + '/map_03_final/lidar1_map03.json')
-    sensors_config1 = json.load(f)
-    random.seed(SEED)
-    
-    f = open(CONFIG_DIR + '/map_03_final/lidar5_map03.json')
-    sensors_config2 = json.load(f)
-    random.seed(SEED)
-    
-    f = open(CONFIG_DIR + '/map_03_final/lidar6_map03.json')
-    sensors_config3 = json.load(f)
-    random.seed(SEED)
-
     print("Connecting to server...")
 
     client = carla.Client(IP, PORT)
