@@ -30,9 +30,9 @@ def cut_files(file, file_BB, src_lidar_path, src_BB_path, dest_lidar_path, dest_
     try:
         # Move the file
         shutil.move(lidar_directory_initial, lidar_directory_finish)
-        print(f"Moved file: {file}")
+        #print(f"Moved file: {file}")
         shutil.move(BB_directory_initial, BB_directory_finish)
-        print(f"Moved file: {file_BB}")
+        #print(f"Moved file: {file_BB}")
     except FileNotFoundError:
         print(f"File not found: {file}")
 

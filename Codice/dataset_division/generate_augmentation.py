@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         
         # Number of random samples you want to take
-        num_samples = int(complete_grid_maps.shape[0] * 0.2)
+        num_samples = int(complete_grid_maps.shape[0] * 0.5)
 
         # Generate random indices
         random_indices = np.random.choice(complete_grid_maps.shape[0], num_samples, replace=False)
@@ -69,28 +69,32 @@ if __name__ == '__main__':
 
         augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB)
 
+        del random_complete_grid_maps, random_complete_grid_maps_BB
+
         augmented_grid_maps = np.array(augmented_grid_maps)
         augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
 
         print(f"\nAugmented grid maps shape: {augmented_grid_maps.shape}")
         print(f"Augmented grid maps BB shape: {augmented_grid_maps_BB.shape}")
 
-        # Concatenate the lists in complete_grid_maps along the first dimension
-        complete_grid_maps = np.concatenate((complete_grid_maps, augmented_grid_maps), axis=0)
-        print(f"\nNew complete grid map shape : {complete_grid_maps.shape}")
-        complete_grid_maps_BB = np.concatenate((complete_grid_maps_BB, augmented_grid_maps_BB), axis=0)
-        print(f"New complete grid map BB shape : {complete_grid_maps_BB.shape}")
-
-        del augmented_grid_maps, augmented_grid_maps_BB, random_complete_grid_maps, random_complete_grid_maps_BB
-        gc.collect()
-        
-        indices = np.arange(complete_grid_maps.shape[0])
-        np.random.shuffle(indices)
-        complete_grid_maps = complete_grid_maps[indices]
-        complete_grid_maps_BB = complete_grid_maps_BB[indices]
-
         # Save the arrays
-        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_train_{i}.npy'), complete_grid_maps)
-        print(f"complete grid map train {i} saved")
-        np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_train_{i}.npy'), complete_grid_maps_BB)
-        print(f"complete grid map BB train {i} saved")
+        np.save(os.path.join(complete_name_chunck_path, f'augmented_grid_maps_train_{i}.npy'), augmented_grid_maps)
+        print(f"augmented grid map train {i} saved")
+        np.save(os.path.join(complete_name_chunck_path, f'augmented_grid_maps_BB_train_{i}.npy'), augmented_grid_maps_BB)
+        print(f"augmented grid map BB train {i} saved")
+
+        '''
+        i = 0
+
+        # Visualize the original and augmented grid maps
+        for i in range(10):
+            fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+            ax[0,0].imshow(random_complete_grid_maps[i][0], cmap='gray')
+            ax[0,1].imshow(random_complete_grid_maps_BB[i][0], cmap='gray')
+
+            ax[1,0].imshow(augmented_grid_maps[i][0], cmap='gray')
+            ax[1,1].imshow(augmented_grid_maps_BB[i][0], cmap='gray')
+
+            plt.show()
+        '''
+            

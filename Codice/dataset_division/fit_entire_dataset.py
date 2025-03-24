@@ -9,9 +9,19 @@ from sklearn.preprocessing import MinMaxScaler
 import pickle
 import random
 from pympler import asizeof
+from concurrent.futures import ThreadPoolExecutor
 
+def process_lidar_chunk(lidar_directory, position_directory, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, is_training, number_sensor):
+    generate_combined_grid_maps_fit(lidar_directory, position_directory, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_numb_BB, is_training) # type: ignore
 
-def fit_scalers():
+    # Info about the number of bounding boxes
+    sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, position_directory)
+    print(f"\nSum_chunck of sensor {number_sensor}: ", sum_ped, sum_bic, sum_car)
+    print(f"Average_chunck of sensor {number_sensor}: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
+
+    return complete_grid_maps, complete_grid_maps_BB
+
+def fit_scalers(lidar_paths, position_paths):
     # Initialize the scalers
     scaler_X = MinMaxScaler()
     scaler_y = MinMaxScaler()
@@ -25,56 +35,55 @@ def fit_scalers():
     files_BB = []
     files_for_chunck = []
 
-    for i in range(1, NUMBER_OF_SENSORS+1):
-        lidar_path = LIDAR_X_GRID_DIRECTORY.replace('X', str(i))
-        position_path = POSITION_LIDAR_X_GRID_NO_BB.replace('X', str(i))
+    for i in range(NUMBER_OF_SENSORS):
 
         # Shuffle files_lidar and files_BB in the same way
-        combined_files = list(zip(sorted([f for f in os.listdir(lidar_path)]), sorted([f for f in os.listdir(position_path)])))
+        combined_files = list(zip(sorted([f for f in os.listdir(lidar_paths[i])]), sorted([f for f in os.listdir(position_paths[i])])))
         random.shuffle(combined_files)
         files_lidar_1, files_BB_1 = zip(*combined_files)
         # Convert back to lists if needed
         files_lidar.append(list(files_lidar_1))
         files_BB.append(list(files_BB_1))
 
-        sum_ped, sum_bic, sum_car = number_of_BB(files_BB_1, position_path)
-        print(f"\nSum_complete_lidar1: ", sum_ped, sum_bic, sum_car)
-        print(f"Average_complete_lidar1: ", sum_ped/len(files_BB_1), sum_bic/len(files_BB_1), sum_car/len(files_BB_1))
-
-
-    i = 0
-
-    for i in range(NUMBER_OF_SENSORS):
-        print(f"Number of files of lidar {i+1}: {len(files_lidar[i])}")
+        sum_ped, sum_bic, sum_car = number_of_BB(files_BB_1, position_paths[i])
+        print(f"\nSum_complete lidar {i+1}: ", sum_ped, sum_bic, sum_car)
+        print(f"Average_complete lidar {i+1}: ", sum_ped/len(files_BB_1), sum_bic/len(files_BB_1), sum_car/len(files_BB_1))
 
     i = 0
 
+    print("\n")
     for i in range(NUMBER_OF_SENSORS):
         files_for_chunck.append(math.ceil(len(files_lidar[i]) / number_of_chucks)) #type: ignore
-        print(f"Number of files of lidar {i+1} for  each chunck: {files_for_chunck[i]}")
+        print(f"Number of files of lidar {i+1} and por each chunk: {len(files_lidar[i])}    {files_for_chunck[i]}")
     
     i = 0
 
     for i in range(number_of_chucks): #type: ignore
+
+        print(f"\nChunck number {i+1}: ")
+        
         complete_grid_maps = []
         complete_grid_maps_BB = []
         complete_num_BB = []
 
-        print(f"\nChunck number {i+1} of {number_of_chucks}: ")
+        all_files_chunck = []
+        all_files_BB_chunck = []
 
-        for k in range(1, NUMBER_OF_SENSORS+1):
-            lidar_path = LIDAR_X_GRID_DIRECTORY.replace('X', str(k))
-            position_path = POSITION_LIDAR_X_GRID_NO_BB.replace('X', str(k))
+        for k in range(NUMBER_OF_SENSORS):
 
-            files_lidar_chunck = files_lidar_1[ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(files_lidar[k]) ) ] #type: ignore
-            files_BB_chunck = files_BB_1[ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(files_BB[k]) ) ] #type: ignore
-            generate_combined_grid_maps(lidar_path, position_path, files_lidar_chunck, files_BB_chunck, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, False) # type: ignore
+            files_lidar_chunck = files_lidar[k][ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(files_lidar[k]) ) ] #type: ignore
+            files_BB_chunck = files_BB[k][ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(files_BB[k]) ) ] #type: ignore
+            
+            all_files_chunck.append(files_lidar_chunck)
+            all_files_BB_chunck.append(files_BB_chunck)
 
-            # Info for lidar 1 about the number of bounding boxes
-            sum_ped, sum_bic, sum_car = number_of_BB(files_BB_chunck, position_path)
-            print(f"\nSum_chunck_lidar1: ", sum_ped, sum_bic, sum_car)
-            print(f"Average_chunck_lidar1: ", sum_ped/len(files_BB_chunck), sum_bic/len(files_BB_chunck), sum_car/len(files_BB_chunck))
-
+        with ThreadPoolExecutor(max_workers=NUMBER_OF_SENSORS) as executor:
+            futures = []
+            for j in range(NUMBER_OF_SENSORS):
+                futures.append(executor.submit(process_lidar_chunk, lidar_paths[j], position_paths[j], all_files_chunck[j], all_files_BB_chunck[j], complete_grid_maps, complete_grid_maps_BB, complete_num_BB, True, j+1))
+            
+            for future in futures:
+                complete_grid_maps, complete_grid_maps_BB = future.result()
         
         # Shuffle the data
         combined_files = list(zip(complete_grid_maps, complete_grid_maps_BB))
@@ -97,6 +106,7 @@ def fit_scalers():
 
     # Ensure the directory exists
     os.makedirs(save_directory, exist_ok=True)
+    print("\n")
 
     # Save the scalers to the specified directory
     with open(os.path.join(save_directory, 'scaler_X.pkl'), 'wb') as f:
@@ -107,4 +117,12 @@ def fit_scalers():
     print("scaler_y saved")
 
 if __name__ == "__main__":
-    fit_scalers()
+
+    lidar_direcory_list = []
+    BB_directory_list = []
+
+    for i in range (1, NUMBER_OF_SENSORS+1):
+        lidar_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
+        BB_directory_list.append(POSITION_LIDAR_X_GRID_NO_BB.replace('X', str(i)))
+
+    fit_scalers(lidar_direcory_list, BB_directory_list)

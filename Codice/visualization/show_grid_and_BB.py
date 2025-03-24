@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import sys
 import torch
 import ast
+import numpy as np
+import csv
 
 def visualize_data(grid_map, grid_map_BB):
 

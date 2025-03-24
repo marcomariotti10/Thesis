@@ -38,20 +38,21 @@ def load_dataset_NPY(name, i):
     complete_path = os.path.join(complete_name_ffcv_path, new_name)
 
     writer = DatasetWriter(complete_path, {
-            'covariate': NDArrayField(shape=shape, dtype=np.dtype('float32')),  # Adjust shape
-            'label': NDArrayField(shape=shape, dtype=np.dtype('int')),
+            'covariate': NDArrayField(shape=shape_input, dtype=np.dtype('float32')),  # Adjust shape
+            'label': NDArrayField(shape=shape_target, dtype=np.dtype('int')),
         }, num_workers=16)
 
     writer.from_indexed_dataset(dataset)
 
     complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
 
-    #os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
-    #os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
+    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
+    os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
 
 if __name__ == '__main__':
 
-    shape = (5,400,400)  # Shape of each sample
+    shape_input = (5,400,400)  # Shape of each sample
+    shape_target = (1,400,400)  # Shape of each target
 
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     

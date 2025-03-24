@@ -24,6 +24,7 @@ from matplotlib.path import Path
 import open3d as o3d
 import matplotlib.pyplot as plt
 import cv2
+import ast
 import gc
 from multiprocessing import Pool
 from sklearn.preprocessing import MinMaxScaler
@@ -53,20 +54,34 @@ def load_points_grid_map_BB (csv_file):
         
         for row in reader:
             # Extract the 3D coordinates of the 8 bounding box vertices
-            coordinates = [ [ float(row[i]), float(row[i+1]), float(row[i+2]) ] for i in range(2, 12, 3)]
+            coordinates = [row[2]]
             points.append(coordinates)
 
     np_points = np.array(points)
     return np_points
 
-def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, bool_value):
+# Generate each pair of grid map and bounding box map to be used for the partial fit
+def generate_combined_grid_maps_fit(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, bool_value):
     for file, file_BB in zip(grid_map_files, grid_map_BB_files):
         complete_path = os.path.join(grid_map_path, file)
         complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
-        print(f"Loading {file} and {file_BB}...")
+        #print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
         points_BB = load_points_grid_map_BB(complete_path_BB)
+
+        all_pairs = []
+
+        # Iterate through each row in the numpy array
+        for row in points_BB:
+            # Extract the string from the array
+            string_data = row[0]
+            # Safely evaluate the string to convert it into a list of tuples
+            pairs = ast.literal_eval(string_data)
+            # Add the pairs to the all_pairs list
+            all_pairs.extend(pairs)
+            
+        all_pairs = np.array(all_pairs)
 
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
         grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
@@ -74,10 +89,9 @@ def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files,
         cols, rows, heights = points.T
         grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(float)
 
-        for i in range(len(points_BB)):
-            vertices = np.array(points_BB[i])
-            height_BB = 1  # Assuming all vertices have the same height
-            fill_polygon(grid_map_recreate_BB, vertices, height_BB)
+        if len(all_pairs) != 0:
+            cols, rows = all_pairs.T
+            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
         
         if bool_value:
             num_BB = [0,0,0]
@@ -98,6 +112,82 @@ def generate_combined_grid_maps(grid_map_path, grid_map_BB_path, grid_map_files,
         else:
             complete_grid_maps.append(grid_map_recreate)
             complete_grid_maps_BB.append(grid_map_recreate_BB)
+
+def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_files, complete_grid_maps, complete_grid_maps_BB):
+    
+    print(len(grid_map_files))
+    
+    for i in range(len(grid_map_files)):
+        
+        grid_map_group = []
+
+        for j in range (NUMBER_RILEVATIONS_INPUT):
+            complete_path = os.path.join(grid_map_path, grid_map_files[i][j])
+
+            points = load_points_grid_map(complete_path)
+
+            grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
+
+            cols, rows, heights = points.T
+            grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(float)
+
+            grid_map_group.append(grid_map_recreate)
+        
+        #Save the input   
+        complete_grid_maps.append(grid_map_group)
+
+        complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][-1])
+
+        points_BB = load_points_grid_map_BB(complete_path_BB)
+
+        all_pairs = []
+
+        # Iterate through each row in the numpy array
+        for row in points_BB:
+            # Extract the string from the array
+            string_data = row[0]
+            # Safely evaluate the string to convert it into a list of tuples
+            pairs = ast.literal_eval(string_data)
+            # Add the pairs to the all_pairs list
+            all_pairs.extend(pairs)
+            
+        all_pairs = np.array(all_pairs)
+
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
+
+        if len(all_pairs) != 0:
+            cols, rows = all_pairs.T
+            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
+
+        complete_grid_maps_BB.append(grid_map_recreate_BB)
+
+def generate_combined_list(files_lidar, files_BB):
+    """
+    Generate a new list where each element contains NUMBER_RILEVATIONS_INPUT elements from files_lidar
+    and 1 element from files_BB, which is FUTURE_TARGET_RILEVATION positions ahead of the last lidar element.
+
+    Parameters:
+    - files_lidar: List of lists containing sorted lidar file names.
+    - files_BB: List of lists containing sorted bounding box file names.
+    - NUMBER_RILEVATIONS_INPUT: Number of lidar files to include in each group.
+    - FUTURE_TARGET_RILEVATION: Number of positions ahead for the bounding box file.
+
+    Returns:
+    - combined_list: A list where each element contains NUMBER_RILEVATIONS_INPUT lidar files and 1 bounding box file.
+    """
+    combined_list = []
+    print("\nlen files_lidar:", len(files_lidar))
+    for i in range(0, len(files_lidar) - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION + 1, NUMBER_RILEVATIONS_INPUT):
+        # Take NUMBER_RILEVATIONS_INPUT lidar files starting from the current index
+        lidar_group = files_lidar[i:i + NUMBER_RILEVATIONS_INPUT]
+        # Take the FUTURE_TARGET_RILEVATION-th BB file after the last lidar file
+        BB_file = files_BB[i + NUMBER_RILEVATIONS_INPUT + FUTURE_TARGET_RILEVATION - 1]
+        # Combine the lidar group and the BB file into one element
+        combined_list.append(lidar_group + [BB_file])
+
+    random.shuffle(combined_list)
+    print("len combined files", len(combined_list))
+    return combined_list
 
 def fill_polygon(grid_map, vertices, height):
     # Create an empty mask with the same shape as the grid map
@@ -126,62 +216,29 @@ def fill_polygon(grid_map, vertices, height):
 #        DATA AUGMENTATION FUNCTION        #
 ############################################
 
-def rotate_image(image, angle):
-    """
-    Rotate the given image by the specified angle using OpenCV.
+def apply_augmentation(random_gm, random_BB):
+    def random_shift(img, axis, shift):
+        """
+        Apply a shift to the image along the specified axis and pad with zeros.
+        """
+        shifted_img = np.roll(img, shift=shift, axis=axis)
+        if axis == 1:  # Horizontal shift
+            if shift > 0:  # Positive shift (right)
+                shifted_img[:, :shift] = 0
+            else:  # Negative shift (left)
+                shifted_img[:, shift:] = 0
+        elif axis == 0:  # Vertical shift
+            if shift > 0:  # Positive shift (down)
+                shifted_img[:shift, :] = 0
+            else:  # Negative shift (up)
+                shifted_img[shift:, :] = 0
+        return shifted_img
 
-    Parameters:
-    - image: numpy array to be rotated.
-    - angle: The angle by which to rotate the image.
-
-    Returns:
-    - Rotated numpy array.
-    """
-    (h, w) = image.shape[:2]
-    center = (w // 2, h // 2)
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated = cv2.warpAffine(image, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return rotated
-
-def slide_horizontal(image, shift):
-    """
-    Slide the given image horizontally by the specified shift using OpenCV.
-
-    Parameters:
-    - image: numpy array to be shifted.
-    - shift: The number of pixels to shift the image.
-
-    Returns:
-    - Shifted numpy array.
-    """
-    M = np.float32([[1, 0, shift], [0, 1, 0]])
-    shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return shifted
-
-def slide_vertical(image, shift):
-    """
-    Slide the given image vertically by the specified shift using OpenCV.
-
-    Parameters:
-    - image: numpy array to be shifted.
-    - shift: The number of pixels to shift the image.
-
-    Returns:
-    - Shifted numpy array.
-    """
-    M = np.float32([[1, 0, 0], [0, 1, shift]])
-    shifted = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    return shifted
-
-def apply_augmentation(grid_maps, grid_maps_BB):
-
-    augmentations = {
-        'horizontal_flip': lambda img: cv2.flip(img, 1),
-        'vertical_flip': lambda img: cv2.flip(img, 0),
-        'rotation': rotate_image,
-        'slide_horizontal': slide_horizontal,
-        'slide_vertical': slide_vertical
-    }
+    def random_rotation(img, angle):
+        """
+        Rotate an image by a specified angle.
+        """
+        return rotate_image(img, angle)
 
     augmented_grid_maps = []
     augmented_grid_maps_BB = []
@@ -189,43 +246,79 @@ def apply_augmentation(grid_maps, grid_maps_BB):
     # Set the random seed for consistency
     random.seed(SEED)
     
-    for i in range(grid_maps.shape[0]):
-        grid_map = grid_maps[i]
-        grid_map_BB = grid_maps_BB[i]
-        
-        applied_augmentations = set()
-        for j in range(2):
-            while True:
-                # Seleziona casualmente un'augmentation
-                augmentation_name, augmentation = random.choice(list(augmentations.items()))
-                if augmentation_name not in applied_augmentations:
-                    applied_augmentations.add(augmentation_name)
-                    break
+    for i in range(random_gm.shape[0]):
+        # Create copies to avoid modifying the original arrays
+        grid_map = np.copy(random_gm[i])
+        grid_map_BB = np.copy(random_BB[i])
 
-            # Applica la stessa augmentation a entrambe le immagini
-            if augmentation_name == 'rotation':
-                while True:
-                    angle = random.randint(-45, 45)
-                    if angle < -30 or angle > 30:
-                        break
-                grid_map = augmentation(grid_map, angle)
-                grid_map_BB = augmentation(grid_map_BB, angle)
+        # Ensure grid_map_BB has the same shape as grid_map
+        grid_map_BB = np.squeeze(grid_map_BB)  # Remove the extra dimension (if present)
 
-            elif augmentation_name in ['slide_horizontal', 'slide_vertical']:
-                while True:
-                    shift = random.randint(-100, 100)
-                    if shift < -50 or shift > 50:
-                        break
-                grid_map = augmentation(grid_map, shift)
-                grid_map_BB = augmentation(grid_map_BB, shift)
-            else:
-                grid_map = augmentation(grid_map)
-                grid_map_BB = augmentation(grid_map_BB)
+        # Define augmentation probabilities
+        augmentations = [
+            ('rotation', 0.5),
+            ('shift', 0.2),
+            ('flip', 0.3)
+        ]
+
+        # Select the first augmentation
+        first_augmentation = random.choices(
+            augmentations, 
+            weights=[aug[1] for aug in augmentations], 
+            k=1
+        )[0]
+
+        # Remove the first augmentation from the list for the second selection
+        remaining_augmentations = [aug for aug in augmentations if aug[0] != first_augmentation[0]]
+
+        # Select the second augmentation
+        second_augmentation = random.choices(
+            remaining_augmentations, 
+            weights=[aug[1] for aug in remaining_augmentations], 
+            k=1
+        )[0]
+
+        # Apply the selected augmentations
+        for augmentation_type in [first_augmentation, second_augmentation]:
+            if augmentation_type[0] == 'rotation':
+                angle = int(random.uniform(-60, -30)) if random.random() < 0.5 else int(random.uniform(30, 60))
+                print("angle", angle)
+                augmentation = lambda img: random_rotation(img, angle=angle)
+            elif augmentation_type[0] == 'shift':
+                shift = int(random.uniform(-100, -50)) if random.random() < 0.5 else int(random.uniform(50, 100))
+                print("shift", shift)
+                axis = random.choice([0, 1])  # Randomly choose vertical or horizontal shift
+                augmentation = lambda img: random_shift(img, axis=axis, shift=shift)
+            elif augmentation_type[0] == 'flip':
+                flip_code = random.choice([0, 1])  # 0 for vertical flip, 1 for horizontal flip
+                augmentation = lambda img: cv2.flip(img, flip_code)
+
+            # Apply the augmentation to all images in the group
+            for k in range(grid_map.shape[0]):
+                grid_map[k] = augmentation(grid_map[k])
+            grid_map_BB = augmentation(grid_map_BB)
+
+        grid_map_BB = np.expand_dims(grid_map_BB, axis=0)  # Add the extra dimension back
         
+        #print("first and second augmentation", first_augmentation, second_augmentation)
+
         augmented_grid_maps.append(grid_map)
         augmented_grid_maps_BB.append(grid_map_BB)
     
     return augmented_grid_maps, augmented_grid_maps_BB
+
+
+def rotate_image(image, angle):
+    """
+    Rotate an image by a specified angle.
+    """
+    # Get the center of the image
+    center = (image.shape[1] // 2, image.shape[0] // 2)
+    # Compute the rotation matrix
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    # Perform the rotation
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (image.shape[1], image.shape[0]), flags=cv2.INTER_NEAREST, borderValue=0)
+    return rotated_image
 
 ############################################
 #       GENERATE CHUNCKS FUNCTIONS         #

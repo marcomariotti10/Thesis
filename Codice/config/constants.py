@@ -77,3 +77,6 @@ SEED = 42
 TEST_SIZE = 0.1
 NUMBER_OF_CHUNCKS = 3
 NUMBER_OF_CHUNCKS_TEST = 2
+
+NUMBER_RILEVATIONS_INPUT = 5
+FUTURE_TARGET_RILEVATION = 5 # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
