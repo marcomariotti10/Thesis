@@ -71,8 +71,12 @@ def process_csv_file(args):
     next(reader)  # Skip header
 
     for row in reader:
+        if row[1] == 'pedestrian':
+            increment = INCREMENT_BB_PEDESTIAN
+        else:
+            increment = 0.0
         center = [float(row[2]), float(row[3]), float(row[4])]
-        dimension = [float(row[5]), float(row[6]), float(row[7])]
+        dimension = [float(row[5]) + increment, float(row[6]) + increment, float(row[7]) + increment]
         rotation = [float(row[8]), float(row[9]), float(row[10])]
         offsets = [
             [dimension[0], dimension[1], dimension[2]],
@@ -177,11 +181,11 @@ if __name__ == "__main__":
         user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
         if user_input == 'all':
             for i in range(NUMBER_OF_SENSORS):
-                convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, i+1)
+                convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, POSITIONS_LIDAR_X_GRID, i+1)
                 print("lidar" + str(i+1) + " done")
             break
         elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
-            convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, int(user_input))
+            convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, POSITIONS_LIDAR_X_GRID, int(user_input))
             break
         else:
             print("Invalid input.")

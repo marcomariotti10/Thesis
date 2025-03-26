@@ -31,8 +31,8 @@ SEED = 42
 PORT = 2000
 PORTTM = 8000
 IP = "127.0.0.1"
-N_WEHICLES = 30
-N_PED = 20
+N_WEHICLES = 40
+N_PED = 40
 
 def get_actor_blueprints(world, filter, generation):
     bps = world.get_blueprint_library().filter(filter)
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # PEDESTRIANS
         # ---------------------
         print("Pedestrian creation...")
-        controllers = spawn_pedestrians(client, 20, LOCAL)      
+        controllers = spawn_pedestrians(client, N_PED, LOCAL)      
 
         # ---------------------
         # VEHICLES

@@ -86,10 +86,6 @@ def get_walker_spawn_location(world):
                 },
         }
         location = world.get_random_location_from_navigation()
-        while (location == None \
-            or not is_within_area(location, walker_area_limits['br'], walker_area_limits['tl']) \
-            or is_within_area(location, kiosk_location['br'], kiosk_location['tl'])):
-            location = world.get_random_location_from_navigation()
         return location
 
 def spawn_pedestrians(client : carla.Client, num_ped=100, LOCAL=False):

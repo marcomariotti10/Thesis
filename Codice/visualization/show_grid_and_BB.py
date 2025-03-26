@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
             # Replace 'X' in the paths with the lidar_number
             path_lidar = LIDAR_X_GRID_DIRECTORY.replace('X', user_input)
-            new_position_path = POSITION_LIDAR_X_GRID_NO_BB.replace('X', user_input)
+            new_position_path = POSITIONS_LIDAR_X_GRID.replace('X', user_input)
             lidar_file = LIDAR_FILE_X[int(user_input)-1]
             break
         else:

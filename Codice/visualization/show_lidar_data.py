@@ -70,12 +70,16 @@ def load_bounding_box(csv_file):
         reader = csv.reader(file)
         next(reader)  # Skip header
         for row in reader:
+            if row[1] == 'pedestrian':
+                increment = INCREMENT_BB_PEDESTIAN
+            else:
+                increment = 0.0
             # Extract the 3D coordinates of the 8 bounding box vertices
             center = [
                 float(row[2]), float(row[3]), float(row[4])
             ]
             dimension = [
-                float(row[5]), float(row[6]), float(row[7])
+                float(row[5]) + increment, float(row[6]) + increment, float(row[7]) + increment
             ]
             rotation = [float(row[8]), float(row[9]), float(row[10])
                         ]

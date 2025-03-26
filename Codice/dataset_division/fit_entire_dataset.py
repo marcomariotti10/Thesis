@@ -123,6 +123,6 @@ if __name__ == "__main__":
 
     for i in range (1, NUMBER_OF_SENSORS+1):
         lidar_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
-        BB_directory_list.append(POSITION_LIDAR_X_GRID_NO_BB.replace('X', str(i)))
+        BB_directory_list.append(POSITIONS_LIDAR_X_GRID.replace('X', str(i)))
 
     fit_scalers(lidar_direcory_list, BB_directory_list)

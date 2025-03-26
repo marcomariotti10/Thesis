@@ -29,20 +29,14 @@ IP = "127.0.0.1"
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Generate a sensor in the simulation.')
-    parser.add_argument('--number', type=int, default=1, help='Number of the sensor to generate')
-    args = parser.parse_args()
-
-    sensor_number = args.number
-
-    f = open(CONFIG_DIR + f'/map_03_final/lidar{sensor_number}_map03.json')
+    f = open(CONFIG_DIR + f'/map_03_final/lidar10_map03.json')
     sensors_config = json.load(f)
     random.seed(SEED)
 
     print("Connecting to server...")
 
     client = carla.Client(IP, PORT)
-    client.set_timeout(150.0)
+    client.set_timeout(15.0)
     world = client.get_world()
 
     try:
@@ -94,6 +88,8 @@ if __name__ == "__main__":
             # Break if user presses 'q'
             key = cv2.waitKey(1)
             if key == ord('q'):
+                process.terminate()
+                process.wait()  # Wait for save_BB.py to exit cleanly
                 break
             # add other commands here
             if key == ord('s'):
@@ -123,12 +119,17 @@ if __name__ == "__main__":
         print(e)
     finally:
         cv2.destroyAllWindows()
+
+        if LOCAL:
+            settings=world.settings()
+            settings.synchronous_mode = False
+            settings.no_rendering_mode = False
+            settings.fixed_delta_seconds = None
+            world.apply_settings(settings)
+            tm=world.get_trafficmanager(PORTTM)
+            tm.set_synchronous_mode(False)
         
         # Destroy sensors
-        for sensor in sensors:
-            sensor.destroy()
         client.apply_batch([carla.command.DestroyActor(x) for x in world.get_actors().filter('sensor.lidar.ray_cast')])
-        # Destroy sensors home actors
-        for st in static:
-            st.destroy()
+         # Destroy sensors home actors
         client.apply_batch([carla.command.DestroyActor(x) for x in world.get_actors().filter('*static*')])

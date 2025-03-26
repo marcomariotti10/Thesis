@@ -98,7 +98,7 @@ def modify_position_file(args):
     # Select all columns except the first two
     cols_to_modify = df.columns[2:]
 
-    # Apply the transformations (number_lidar = 1 for lidar1, 2 for lidar2, 3 for lidar3)
+    # Apply the transformations 
     df[cols_to_modify[0]] = df[cols_to_modify[0]] + NEW_POSITIONS_OFFSETS[number_lidar-1][0]
     df[cols_to_modify[1]] = df[cols_to_modify[1]] + NEW_POSITIONS_OFFSETS[number_lidar-1][1]
     df[cols_to_modify[2]] = df[cols_to_modify[2]] + NEW_POSITIONS_OFFSETS[number_lidar-1][2]

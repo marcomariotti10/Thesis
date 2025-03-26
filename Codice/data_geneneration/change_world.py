@@ -90,4 +90,4 @@ if __name__ == "__main__":
     client = carla.Client(IP, PORT)
     client.set_timeout(15.0)
     world = client.get_world()
-    world = client.load_world('Town02')
+    world = client.load_world('Town10HD')

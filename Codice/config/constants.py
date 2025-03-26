@@ -8,13 +8,13 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911'
+DATA_HOME = HOME + r'/data_map03_0911_test'
 
 HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 
-NUMBER_OF_SENSORS = 3
+NUMBER_OF_SENSORS = 12
 
 LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
 LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'
@@ -23,7 +23,7 @@ POSITIONS_DIRECTORY = DATA_HOME + r'/1_original/position'
 LIDAR_DIRECTORY = DATA_HOME + r'/1_original'
 
 NEW_POSITION_LIDAR_X_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidarX'
-NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
+POSITIONS_LIDAR_X_GRID = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
 POSITION_LIDAR_X_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidarX_grid_no_BB'
 
 LIDAR_X_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_X'
@@ -44,7 +44,7 @@ SCALER_DIR = HOME_SAVING + r'/scalers'
 MODEL_DIR = HOME_SAVING + r'/models_pred'
 
 # For save_positions
-NEW_POSITIONS_OFFSETS = [(70.15, 11.50, -6.0), (100.59, -27.46, -6.0), (96.83, 6.31, -6.0), (65.3, -0.55, -6.0), (73.50, -9.25, -6.0), (85.65, -27.85, -6.0)]
+NEW_POSITIONS_OFFSETS = [(70.15, 11.50, -6.0), (100.59, -27.46, -6.0), (96.83, 6.31, -6.0), (65.3, -0.55, -6.0), (73.50, -9.25, -6.0), (85.65, -27.85, -6.0), (29.11, -5.86, -6.0), (5.97, -28.63, -6.0), (-16.59, -1.22, -6.0), (68.46, 128.17, -6.0), (115.36, 129.5, -6.0), (15.34, -125.4, -6.0)]
 
 # For Show_grid_map
 MIN_HEIGHT = -60.0
@@ -63,10 +63,10 @@ FLOOR_HEIGHT = -100
 RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_X = [370, 100, 562]
+LIDAR_FILE_X = [370, 100, 562, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+INCREMENT_BB_PEDESTIAN = 0.12
 
 # For Eliminate_BB_without_points
-INCREMENT_BB_PEDESTRIAN = 2
 NUM_MIN_POINTS_VEHICLE = 5
 NUM_MIN_POINTS_BICYCLE = 3
 NUM_MIN_POINTS_PEDESTRIAN = 1

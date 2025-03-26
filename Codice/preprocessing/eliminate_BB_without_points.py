@@ -9,31 +9,6 @@ import csv
 import ast
 from multiprocessing import Pool
 
-def extract_smaller_grid(grid_map_recreate, positions, label):
-    # Extract x and y coordinates from positions
-    x_coords = [int(pos[0]) for pos in positions]
-    y_coords = [int(pos[1]) for pos in positions]
-
-    # Determine the bounding box 
-    min_x, max_x = min(x_coords), max(x_coords)
-    min_y, max_y = min(y_coords), max(y_coords)
-
-    # Extract the smaller grid, considering a margin for pedestrians because the BB is too small
-    if(label == "vehicle" or label == "bicycle"):
-        smaller_grid = grid_map_recreate[min_y:max_y, min_x:max_x]
-    else:
-        if min_y - 1 < 0:
-                min_y = 0
-        if min_x - 1 < 0:   
-                min_x = 0
-        if max_y + 1 > Y_RANGE:
-                max_y = Y_RANGE
-        if max_x + 1 > X_RANGE:
-                max_x = X_RANGE
-        smaller_grid = grid_map_recreate[min_y-INCREMENT_BB_PEDESTRIAN:max_y+INCREMENT_BB_PEDESTRIAN, min_x-INCREMENT_BB_PEDESTRIAN:max_x+INCREMENT_BB_PEDESTRIAN]
-
-    return smaller_grid
-
 def eliminate_lines_from_file(BB_path, new_path_output, file_name, lines_to_eliminate):
     with open(BB_path, 'r') as file_BB:
         lines = file_BB.readlines()
@@ -138,11 +113,11 @@ if __name__ == "__main__":
         user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
         if user_input == 'all':
             for i in range(NUMBER_OF_SENSORS):
-                eliminate_BB(LIDAR_X_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID_NO_BB, i+1)
+                eliminate_BB(LIDAR_X_GRID_DIRECTORY, POSITIONS_LIDAR_X_GRID, POSITION_LIDAR_X_GRID_NO_BB, i+1)
                 print("lidar" + str(i+1) + " done")
             break
         elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
-            eliminate_BB(LIDAR_X_GRID_DIRECTORY, NEW_POSITIONS_LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID_NO_BB, int(user_input))
+            eliminate_BB(LIDAR_X_GRID_DIRECTORY, POSITIONS_LIDAR_X_GRID, POSITION_LIDAR_X_GRID_NO_BB, int(user_input))
             break
         else:
             print("Invalid input.")
