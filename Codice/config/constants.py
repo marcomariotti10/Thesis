@@ -23,7 +23,7 @@ POSITIONS_DIRECTORY = DATA_HOME + r'/1_original/position'
 LIDAR_DIRECTORY = DATA_HOME + r'/1_original'
 
 NEW_POSITION_LIDAR_X_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidarX'
-POSITIONS_LIDAR_X_GRID = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
+POSITION_LIDAR_X_GRID = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
 POSITION_LIDAR_X_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidarX_grid_no_BB'
 
 LIDAR_X_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_X'

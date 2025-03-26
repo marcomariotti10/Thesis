@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     for i in range (1, NUMBER_OF_SENSORS+1):
         lidar_train_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
-        BB_train_directory_list.append(POSITION_LIDAR_X_GRID_NO_BB.replace('X', str(i)))
+        BB_train_directory_list.append(POSITION_LIDAR_X_GRID.replace('X', str(i)))
         lidar_test_direcory_list.append(LIDAR_X_TEST.replace('X', str(i)))
         BB_test_directory_list.append(POSITION_X_TEST.replace('X', str(i)))
         lidar_val_direcory_list.append(LIDAR_X_VAL.replace('X', str(i)))
