@@ -66,6 +66,7 @@ if __name__ == '__main__':
         print("Lenght complete grid maps BB: ", len(complete_grid_maps_BB))
         print("Lenght augmented grid maps: ", len(augmented_grid_maps))
         print("Lenght augmented grid maps BB: ", len(augmented_grid_maps_BB))
+        print("\n")
 
         complete_grid_maps = np.concatenate((complete_grid_maps, augmented_grid_maps), axis=0)
         complete_grid_maps_BB = np.concatenate((complete_grid_maps_BB, augmented_grid_maps_BB), axis=0)
@@ -77,11 +78,13 @@ if __name__ == '__main__':
 
         print("Lenght complete grid maps aufter concatenation: ", len(complete_grid_maps))
         print("Lenght complete grid maps BB after concatenation: ", len(complete_grid_maps_BB))
+        print("\n")
 
         np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_train_{train_chunck}.npy'), complete_grid_maps)
         print(f"Saved complete_grid_maps_train_{train_chunck}.npy")
         np.save(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_train_{train_chunck}.npy'), complete_grid_maps_BB)
         print(f"Saved complete_grid_maps_BB_train_{train_chunck}.npy")
+        print("\n")
 
         os.remove(os.path.join(complete_name_chunck_path, f'augmented_grid_maps_train_{augment_chunck}.npy'))
         os.remove(os.path.join(complete_name_chunck_path, f'augmented_grid_maps_BB_train_{augment_chunck}.npy'))

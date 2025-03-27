@@ -115,7 +115,7 @@ def generate_combined_grid_maps_fit(grid_map_path, grid_map_BB_path, grid_map_fi
 
 def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_files, complete_grid_maps, complete_grid_maps_BB):
     
-    print(len(grid_map_files))
+    #print(len(grid_map_files))
     
     for i in range(len(grid_map_files)):
         
@@ -176,7 +176,7 @@ def generate_combined_list(files_lidar, files_BB):
     - combined_list: A list where each element contains NUMBER_RILEVATIONS_INPUT lidar files and 1 bounding box file.
     """
     combined_list = []
-    print("\nlen files_lidar:", len(files_lidar))
+    #print("\nlen files_lidar:", len(files_lidar))
     for i in range(0, len(files_lidar) - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION + 1, NUMBER_RILEVATIONS_INPUT):
         # Take NUMBER_RILEVATIONS_INPUT lidar files starting from the current index
         lidar_group = files_lidar[i:i + NUMBER_RILEVATIONS_INPUT]
@@ -186,7 +186,7 @@ def generate_combined_list(files_lidar, files_BB):
         combined_list.append(lidar_group + [BB_file])
 
     random.shuffle(combined_list)
-    print("len combined files", len(combined_list))
+    #print("len combined files", len(combined_list))
     return combined_list
 
 def fill_polygon(grid_map, vertices, height):
@@ -282,11 +282,11 @@ def apply_augmentation(random_gm, random_BB):
         for augmentation_type in [first_augmentation, second_augmentation]:
             if augmentation_type[0] == 'rotation':
                 angle = int(random.uniform(-60, -30)) if random.random() < 0.5 else int(random.uniform(30, 60))
-                print("angle", angle)
+                #print("angle", angle)
                 augmentation = lambda img: random_rotation(img, angle=angle)
             elif augmentation_type[0] == 'shift':
                 shift = int(random.uniform(-100, -50)) if random.random() < 0.5 else int(random.uniform(50, 100))
-                print("shift", shift)
+                #print("shift", shift)
                 axis = random.choice([0, 1])  # Randomly choose vertical or horizontal shift
                 augmentation = lambda img: random_shift(img, axis=axis, shift=shift)
             elif augmentation_type[0] == 'flip':

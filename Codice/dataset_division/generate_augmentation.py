@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         
         # Number of random samples you want to take
-        num_samples = int(complete_grid_maps.shape[0] * 0.5)
+        num_samples = int(complete_grid_maps.shape[0] * AUGMENTATION_FACTOR)
 
         # Generate random indices
         random_indices = np.random.choice(complete_grid_maps.shape[0], num_samples, replace=False)

@@ -64,6 +64,8 @@ RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehic
 
 # For Show_lidar_data and Show_grid_map
 LIDAR_FILE_X = [370, 100, 562, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+
+# For show_grid_and_BB and Conversion_BB_into_2,5D
 INCREMENT_BB_PEDESTIAN = 0.12
 
 # For Eliminate_BB_without_points
@@ -71,6 +73,9 @@ NUM_MIN_POINTS_VEHICLE = 5
 NUM_MIN_POINTS_BICYCLE = 3
 NUM_MIN_POINTS_PEDESTRIAN = 1
 HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
+
+# For generate_augmentation
+AUGMENTATION_FACTOR = 0.5
 
 # For Neural_network
 SEED = 42
