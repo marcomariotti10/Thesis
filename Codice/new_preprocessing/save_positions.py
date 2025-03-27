@@ -12,36 +12,41 @@ import pandas as pd
 import threading
 
 def preprocessing_data(path_lidar, new_positions_lidar_output, lidar_number):
-    """Process LiDAR data for a given sensor using threading"""
+    # Replace 'X' in the paths with the lidar_number
     path_lidar = path_lidar.replace('X', str(lidar_number))
     new_positions_lidar_output = new_positions_lidar_output.replace('X', str(lidar_number))
 
-    files_in_lidar_output = sorted([f[:-4] for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
-
-    new_file_names_lidar_output = compare_and_save_positions(files_in_lidar_output, new_positions_lidar_output)
+    files_in_lidar_output = sorted([f for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
+    files_in_lidar_output_removed = []
+    for file in files_in_lidar_output:
+        file = file[:-4]
+        files_in_lidar_output_removed.append(file)
+    new_file_names_lidar_output = compare_and_save_positions(files_in_lidar_output_removed, new_positions_lidar_output)
     modify_positions(new_file_names_lidar_output, new_positions_lidar_output, lidar_number)
 
 def diff(date1, date2):
-    """Calculate time difference between two timestamps"""
     format = "%Y%m%d_%H%M%S_%f"
     datetime1 = datetime.datetime.strptime(date1, format)
     datetime2 = datetime.datetime.strptime(date2, format)
-    return abs((datetime2 - datetime1).total_seconds())
+    diff = datetime2 - datetime1
+    return diff
 
 def compare_and_save_positions(lidar_files, new_position_path):
-    """Find the closest position file for each LiDAR file and save it"""
+    before_file = ''
     positions_files = []
     last_position = 0
-    before_file = ''
-
     for file_lidar in lidar_files:
-        before_diff = float('inf')
+        before_diff = datetime.timedelta(days=1000)
+        before_diff = abs(before_diff.total_seconds())
 
+        #Without this 'if', in case the best position file is the last one, it will not be saved in the list
         if before_file == files_in_position_removed[-1]:
             positions_files.append(before_file)
-
+        
+        before_file = ''
         for i in range(last_position, len(files_in_position_removed)):
             difference = diff(file_lidar, files_in_position_removed[i])
+            difference = abs(difference.total_seconds())
             if difference <= before_diff:
                 before_diff = difference
                 before_file = files_in_position_removed[i]
@@ -50,30 +55,37 @@ def compare_and_save_positions(lidar_files, new_position_path):
                 last_position = i - 1
                 break
 
+    #Without this 'if', in case the best position file of the last lidar file is the last one, it will not be saved in the list
     if before_file == files_in_position_removed[-1]:
         positions_files.append(before_file)
 
-    if len(lidar_files) != len(positions_files):
-        print('ERROR: THE TWO LISTS HAVE DIFFERENT LENGTHS')
-        return []
+    #ERROR PRINT
+    try:
+        if len(lidar_files) == len(positions_files):
+            pass
+    except ValueError:
+        print('THE TWO LISTS HAVE DIFFERENT LENGTHS')
+        sys.exit(1)
 
-    complete_file_names = [name + ".csv" for name in positions_files]
+    complete_file_name = [name + ".csv" for name in positions_files]
 
+    # Create the new folder if it doesn't exist
     if not os.path.exists(new_position_path):
         os.makedirs(new_position_path)
 
     new_file_names = []
-    for i, file_name in enumerate(complete_file_names):
+    for i, file_name in enumerate(complete_file_name):
+        # Construct the full file paths
         source_file = os.path.join(path_position, file_name)
         new_file_name = f"{file_name[:-4]}_{i}.csv"
         new_file_names.append(new_file_name)
         destination_file = os.path.join(new_position_path, new_file_name)
-
-        if os.path.exists(source_file):
+        
+        # Copy the file
+        if os.path.exists(source_file):  # Check if file exists before copying
             shutil.copy(source_file, destination_file)
         else:
             print(f"File not found: {file_name}")
-
     return new_file_names
 
 def modify_position_file(file, new_path_position, number_lidar):
@@ -105,21 +117,23 @@ if __name__ == "__main__":
     files_in_position_removed = sorted([f[:-4] for f in os.listdir(path_position) if os.path.isfile(os.path.join(path_position, f))])
 
     user_input = input("Enter the number of the LiDAR sensor or 'all' to process all: ")
-
-    if user_input.lower() == 'all':
-        sensor_threads = []
-        for i in range(1, NUMBER_OF_SENSORS + 1):
-            thread = threading.Thread(target=preprocessing_data, args=(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, i))
-            sensor_threads.append(thread)
-            thread.start()
-
-        for thread in sensor_threads:
-            thread.join()
-
-        print("Processing completed for all sensors.")
     
-    elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
-        preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, int(user_input))
+    while True:
+        if user_input.lower() == 'all':
+            sensor_threads = []
+            for i in range(1, NUMBER_OF_SENSORS + 1):
+                thread = threading.Thread(target=preprocessing_data, args=(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, i))
+                sensor_threads.append(thread)
+                thread.start()
 
-    else:
-        print("Invalid input.")
+            for thread in sensor_threads:
+                thread.join()
+
+            print("Processing completed for all sensors.")
+            break
+        
+        elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
+            preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, int(user_input))
+            break
+        else:
+            print("Invalid input.")

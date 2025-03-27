@@ -65,20 +65,23 @@ def generate_grid_map(ply_directory, folder_path, lidar_number):
 if __name__ == "__main__":
     user_input = input("Enter the number of the LiDAR sensor or 'all' to process all: ")
 
-    if user_input.lower() == 'all':
-        sensor_threads = []
-        for i in range(1, NUMBER_OF_SENSORS + 1):
-            thread = threading.Thread(target=generate_grid_map, args=(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, i))
-            sensor_threads.append(thread)
-            thread.start()
+    while True:
+        if user_input.lower() == 'all':
+            sensor_threads = []
+            for i in range(1, NUMBER_OF_SENSORS + 1):
+                thread = threading.Thread(target=generate_grid_map, args=(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, i))
+                sensor_threads.append(thread)
+                thread.start()
 
-        for thread in sensor_threads:
-            thread.join()
+            for thread in sensor_threads:
+                thread.join()
 
-        print("Processing completed for all sensors.")
-    
-    elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
-        generate_grid_map(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, int(user_input))
+            print("Processing completed for all sensors.")
+            break
 
-    else:
-        print("Invalid input.")
+        elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
+            generate_grid_map(LIDAR_X_DIRECTORY, LIDAR_X_GRID_DIRECTORY, int(user_input))
+            break
+
+        else:
+            print("Invalid input.")
