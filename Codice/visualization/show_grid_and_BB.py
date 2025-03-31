@@ -104,6 +104,7 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
             col, row= pair
             grid_map_recreate_BB[int(row), int(col)] = 1
 
+        '''
         t = random.randint(10, RANGE_TIMESTEPS) # Random timestep
         alpha_cumprod = get_noise_schedule()
 
@@ -130,7 +131,8 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
         
         #noise = np.random.normal(0, 1, grid_map_recreate_BB.shape)
         #grid_map_recreate_BB = np.clip(grid_map_recreate_BB + noise, 0, 1)'
-
+        '''
+        
         visualize_data(grid_map_recreate, grid_map_recreate_BB)
     
     #print(f"max value: {max}")

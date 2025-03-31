@@ -32,7 +32,7 @@ PORT = 2000
 IP = "127.0.0.1"
     
 
-def retrieve_actor_positions():
+def retrieve_actor_positions(position_directory):
     # Get all actors in the simulation
     
     all_actors = world.get_actors()
@@ -85,12 +85,8 @@ def retrieve_actor_positions():
         elif (ids in car) : labels.append("car")
         elif (ids in bicycle) : labels.append("bicycle")
         else : labels.append("other")
-
-    # Create the new folder if it doesn't exist
-    if not os.path.exists(POSITIONS_DIRECTORY):
-        os.makedirs(POSITIONS_DIRECTORY)
     
-    filename=(POSITIONS_DIRECTORY + '/%s.csv' % (datetime.now().strftime('%Y%m%d_%H%M%S_%f')))
+    filename=(position_directory + '/%s.csv' % (datetime.now().strftime('%Y%m%d_%H%M%S_%f')))
     # Prepare the data in a dictionary format
     data = [{"actor_id": actor_id, "label" : label,"actor_center_x" : actor_cent.x,"actor_center_y" : actor_cent.y, "actor_center_z" : actor_cent.z,  "actor_dimension_x": dim.x,  "actor_dimension_y": dim.y, "actor_dimension_z": dim.z, "actor_rotation_pitch" : rot.pitch, "actor_rotation_roll" : rot.roll, "actor_rotation_yaw" : rot.yaw } for actor_id, label, actor_cent, dim, rot in zip(id, labels, actor_center, dimensions, rotations) if (label !='other' and label !='sensor')]
 
@@ -110,12 +106,24 @@ if __name__ == "__main__":
     client.set_timeout(150.0)
     world = client.get_world()
 
+    i = 1
+    while(True):
+        position_directory = POSITIONS_DIRECTORY.replace('X', str(i))       
+        if not os.path.exists(position_directory):
+            break 
+        else:
+            i += 1
+    
+    print(f"Creating folder for saving positions with i equal to {i}")
+
+    os.makedirs(position_directory)
+
     print("Press Ctrl + C to stop the execution.")
 
     try:
 
         while True:
-            retrieve_actor_positions()
+            retrieve_actor_positions(position_directory)
             time.sleep(0.01)
 
     except KeyboardInterrupt:

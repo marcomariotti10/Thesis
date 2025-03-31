@@ -10,17 +10,19 @@ import csv
 import numpy as np
 import pandas as pd
 import threading
+from itertools import chain
 
 def preprocessing_data(path_lidar, new_positions_lidar_output, lidar_number):
     # Replace 'X' in the paths with the lidar_number
     path_lidar = path_lidar.replace('X', str(lidar_number))
     new_positions_lidar_output = new_positions_lidar_output.replace('X', str(lidar_number))
 
-    files_in_lidar_output = sorted([f for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
-    files_in_lidar_output_removed = []
-    for file in files_in_lidar_output:
-        file = file[:-4]
-        files_in_lidar_output_removed.append(file)
+    files_in_lidar_output_removed = sorted([f[:-4] for f in os.listdir(path_lidar) if os.path.isfile(os.path.join(path_lidar, f))])
+
+    # Create the new folder if it doesn't exist
+    if not os.path.exists(new_positions_lidar_output):
+        os.makedirs(new_positions_lidar_output)
+
     new_file_names_lidar_output = compare_and_save_positions(files_in_lidar_output_removed, new_positions_lidar_output)
     modify_positions(new_file_names_lidar_output, new_positions_lidar_output, lidar_number)
 
@@ -69,14 +71,20 @@ def compare_and_save_positions(lidar_files, new_position_path):
 
     complete_file_name = [name + ".csv" for name in positions_files]
 
-    # Create the new folder if it doesn't exist
-    if not os.path.exists(new_position_path):
-        os.makedirs(new_position_path)
+    z = 1
+    while(True):
+        
+        position_path = POSITIONS_DIRECTORY.replace('X', str(z))       
+        source_file = os.path.join(position_path, complete_file_name[0])
+        if os.path.exists(source_file):  # Check if file exists before copying
+            break
+        else:
+            z += 1
 
     new_file_names = []
     for i, file_name in enumerate(complete_file_name):
         # Construct the full file paths
-        source_file = os.path.join(path_position, file_name)
+        source_file = os.path.join(position_path, file_name)
         new_file_name = f"{file_name[:-4]}_{i}.csv"
         new_file_names.append(new_file_name)
         destination_file = os.path.join(new_position_path, new_file_name)
@@ -113,12 +121,22 @@ def modify_positions(new_file_names, new_path_position, number_lidar):
         thread.join()
 
 if __name__ == "__main__":
-    path_position = POSITIONS_DIRECTORY
-    files_in_position_removed = sorted([f[:-4] for f in os.listdir(path_position) if os.path.isfile(os.path.join(path_position, f))])
 
-    user_input = input("Enter the number of the LiDAR sensor or 'all' to process all: ")
+    k = 1
+    files_in_position_removed = []
+    while(True):
+        path_position = POSITIONS_DIRECTORY.replace('X', str(k))       
+        if not os.path.exists(path_position):
+            break 
+        else:
+            files_in_position_removed.append(sorted([f[:-4] for f in os.listdir(path_position) if os.path.isfile(os.path.join(path_position, f))]))
+            k += 1
     
+    files_in_position_removed = sorted(list(chain.from_iterable(files_in_position_removed)))
+
     while True:
+        user_input = input("Enter the number of the LiDAR sensor or 'all' to process all: ")
+
         if user_input.lower() == 'all':
             sensor_threads = []
             for i in range(1, NUMBER_OF_SENSORS + 1):

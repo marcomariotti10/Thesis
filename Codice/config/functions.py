@@ -31,8 +31,6 @@ import gc
 from multiprocessing import Pool
 from sklearn.preprocessing import MinMaxScaler
 import platform
-from diffusers import UNet2DModel
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
 if platform.system() in 'Linux':
     from ffcv.loader import Loader, OrderOption
