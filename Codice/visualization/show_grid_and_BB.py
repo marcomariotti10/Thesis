@@ -61,6 +61,9 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
     else:
         print(f"ERROR : {specific_csv} is not correct")
 
+    max = 0
+    min = 1000
+
     for i,file in enumerate(grid_map_files):
         grid_map_path = os.path.join(grid_map_directory, file)
         print(f"Loading {file}...")
@@ -100,9 +103,38 @@ def show_grid_map(grid_map_directory, BB_directory, specific_csv):
         for pair in all_pairs:
             col, row= pair
             grid_map_recreate_BB[int(row), int(col)] = 1
+
+        t = random.randint(10, RANGE_TIMESTEPS) # Random timestep
+        alpha_cumprod = get_noise_schedule()
+
+        # Convert grid_map_recreate to a PyTorch tensor and add a batch dimension
+        x0 = torch.tensor(grid_map_recreate_BB, dtype=torch.float32).unsqueeze(0)  # Shape: (1, H, W)
+
+        # Sample Gaussian noise with the same shape as x0
+        noise = torch.randn_like(x0)
+        print("min and max values of noise", noise.min(), noise.max())
+        print("t value", t)
+        # Gather alpha_cumprod[t] for each sample in the batch
+        alpha_t = alpha_cumprod[t-1].view(1, 1, 1)  # Reshape for broadcasting to have shape (B, C, H, W)
+
+        # Apply the forward diffusion equation
+        x_t = torch.sqrt(alpha_t) * x0 + torch.sqrt(1 - alpha_t) * noise
+        x_t = torch.clamp(x_t, 0, 1)  # Ensure values are in the range [0, 1]
+        print("min and max values of x_t", x_t.min(), x_t.max())
+        if x_t.max() > max:
+            max = x_t.max()
+        if x_t.min() < min:
+            min = x_t.min()
         
+        grid_map_recreate_BB = x_t.numpy().squeeze(0)  # Remove the batch dimension
+        
+        #noise = np.random.normal(0, 1, grid_map_recreate_BB.shape)
+        #grid_map_recreate_BB = np.clip(grid_map_recreate_BB + noise, 0, 1)'
+
         visualize_data(grid_map_recreate, grid_map_recreate_BB)
-       
+    
+    #print(f"max value: {max}")
+    #print(f"min value: {min}")
 
 if __name__ == "__main__":
 

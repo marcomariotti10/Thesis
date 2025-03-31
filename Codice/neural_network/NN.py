@@ -106,11 +106,8 @@ class WeightedBCELoss(nn.Module):
 
 def define_models(model_type, activation_function):
     # Model creation
-    model = model_type(activation_fn = activation_function)
-    model.apply(weights_init)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
-    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
+    model = model_type(activation_fn=activation_function)
+    model.apply(initialize_weights)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -134,31 +131,33 @@ def define_models(model_type, activation_function):
     print(f"ID of current CUDA device:{torch.cuda.current_device()}")
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
-    #pos_weight = torch.tensor([2]).to(device)  # Must be a tensor!
-    #criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-
-    criterion = torch.nn.BCEWithLogitsLoss()
-
     if isinstance(model, nn.DataParallel):
-        summary(model.module, (1, 400, 400))
+        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
     else:
-        summary(model, (1, 400, 400))
+        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+    
+    return model, device
 
-    return model, device, criterion, optimizer, scheduler, early_stopping
-
-
-def train(model, device, criterion, optimizer, scheduler, early_stopping, activation_function):
+def train(model, device, activation_function):
+    
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
+    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
+    criterion = torch.nn.BCEWithLogitsLoss()
+   
     # Parameters for training
     early_stopping_triggered = False
     number_of_chuncks = NUMBER_OF_CHUNCKS
-    num_total_epochs = 10
+    num_total_epochs = 100
     num_epochs_for_each_chunck = 1
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
-    batch_size = 16
+    batch_size = 8
 
     os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
     best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+
+    alpha_cumprod = get_noise_schedule()
 
     for j in range(num_total_epochs):
         if early_stopping_triggered:
@@ -183,14 +182,28 @@ def train(model, device, criterion, optimizer, scheduler, early_stopping, activa
                 model.train()
                 train_loss = 0
                 for data in train_loader:
+                    
                     inputs, targets = data
                     targets = targets.float()
+
                     optimizer.zero_grad()
-                    outputs = model(inputs)
-                    loss = criterion(outputs, targets)
+                    
+                    t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                    noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
+                    t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
+                    t_tensor = t_tensor / (RANGE_TIMESTEPS - 1) # Normalize t_tensor to scale values between 0 and 1                   
+                    t_tensor = t_tensor.to(device) # Move t_tensor to GPU
+
+                    # Predict the noise for this timestep
+                    predicted_noise = model(inputs, noisy_target, t_tensor)
+
+                    # Calculate loss with true noise
+                    loss = F.mse_loss(predicted_noise, noise)
+                    
                     loss.backward()
                     optimizer.step()
                     train_loss += loss.item()
+
                 train_loss /= len(train_loader)
 
                 if epoch + 1 == num_epochs_for_each_chunck:
@@ -203,8 +216,21 @@ def train(model, device, criterion, optimizer, scheduler, early_stopping, activa
                             for data in val_loader:
                                 inputs, targets = data
                                 targets = targets.float()
-                                outputs = model(inputs)
-                                loss = criterion(outputs, targets)
+
+                                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                                noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
+                                t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
+                                # Normalize t_tensor to scale values between 0 and 1
+                                t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
+                                # Move t_tensor to the appropriate device (e.g., GPU or CPU)
+                                t_tensor = t_tensor.to(device)
+
+                                # Predict the noise for this timestep
+                                predicted_noise = model(inputs, noisy_target, t_tensor)
+
+                                # Calculate loss with true noise
+                                loss = F.mse_loss(predicted_noise, noise)
+            
                                 val_loss += loss.item()
                         val_loss /= len(val_loader)
                         val_losses.append(val_loss)
@@ -233,12 +259,15 @@ def train(model, device, criterion, optimizer, scheduler, early_stopping, activa
 
     # Unpack the inputs and targets from the first batch
     inputs, targets = first_batch
-    check_dead_neurons(model, inputs, activation_function)
+    check_dead_neurons(model, inputs, targets, activation_function)
+    
     del model
 
-def test(model_type, device, criterion):
+def test(model_type, device):
 
-    model = model_type()
+    batch_size = 8
+
+    model = model_type(activation_fn=activation_function)
 
     model_path = os.path.join(MODEL_DIR, 'best_model.pth')
 
@@ -263,12 +292,17 @@ def test(model_type, device, criterion):
         print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
         model = nn.DataParallel(model)
 
-    summary(model, (1, 400, 400))
+    if isinstance(model, nn.DataParallel):
+        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+    else:
+        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+
+    alpha_cumprod = get_noise_schedule()
 
     test_losses = []
     for i in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
-        test_loader = load_dataset('test', i, device, 16)
+        test_loader = load_dataset('test', i, device, batch_size)
         print("\nLenght test dataset: ", len(test_loader))
         gc.collect()
 
@@ -278,8 +312,20 @@ def test(model_type, device, criterion):
             for data in test_loader:
                 inputs, targets = data
                 targets = targets.float()
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
+                
+                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
+                t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
+                # Normalize t_tensor to scale values between 0 and 1
+                t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
+                # Move t_tensor to the appropriate device (e.g., GPU or CPU)
+                t_tensor = t_tensor.to(device)
+                
+                # Predict the noise for this timestep
+                predicted_noise = model(inputs, noisy_target, t_tensor)
+
+                # Calculate loss with true noise
+                loss = F.mse_loss(predicted_noise, noise)
                 test_loss += loss.item()
         test_loss /= len(test_loader)
         print(f'Test Loss: {test_loss:.4f}')
@@ -293,8 +339,8 @@ def test(model_type, device, criterion):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_classic', help='Type of model to use')
-    parser.add_argument('--activation_function', type=str, default='LeakyReLU', help='Activation function to apply to the model')
+    parser.add_argument('--model_type', type=str, default='BigUNet', help='Type of model to use')
+    parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]
@@ -315,18 +361,16 @@ if __name__ == "__main__":
     gc.collect()
     random.seed(SEED)
 
-    model, device, criterion, optimizer, scheduler, early_stopping = define_models(model_type, activation_function)
+    model, device = define_models(model_type, activation_function)
     
-    train(model, device, criterion, optimizer, scheduler, early_stopping, activation_function)
+    train(model, device, activation_function)
 
-    criterion_test = torch.nn.BCEWithLogitsLoss()
-
-    total_loss, model_best = test(model_type, device, criterion_test)
+    total_loss, model_best = test(model_type, device)
 
     # Define the directory where you want to save the model
     os.makedirs(MODEL_DIR, exist_ok=True)
     time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f'model_{time}_loss_{total_loss:.4f}_{model_type}.pth'
+    model_name = f'model_{time}_loss_{total_loss:.4f}_{model_type.__name__}.pth'
     model_save_path = os.path.join(MODEL_DIR, model_name)
     torch.save(model_best.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')
