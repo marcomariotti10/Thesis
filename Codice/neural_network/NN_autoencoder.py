@@ -132,9 +132,9 @@ def define_models(model_type, activation_function):
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model.module, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     else:
-        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     
     return model, device
 
@@ -144,7 +144,7 @@ def train(model, device, activation_function):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
     early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
     
-    pos_weight = torch.tensor([50.0], device=device)
+    pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
    
     # Parameters for training
@@ -189,17 +189,9 @@ def train(model, device, activation_function):
                     targets = targets.float()
 
                     optimizer.zero_grad()
-                    
-                    t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                    noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
-                    t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
-                    t_tensor = t_tensor / (RANGE_TIMESTEPS - 1) # Normalize t_tensor to scale values between 0 and 1                   
-                    t_tensor = t_tensor.to(device) # Move t_tensor to GPU
 
                     # Predict the noise for this timestep
-                    predicted_noise = model(inputs, noisy_target, t_tensor)
-
-                    pred = noisy_target-predicted_noise
+                    pred = model(inputs)
 
                     # Calculate loss with true noise
                     loss = criterion(pred, targets)
@@ -221,18 +213,8 @@ def train(model, device, activation_function):
                                 inputs, targets = data
                                 targets = targets.float()
 
-                                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                                noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
-                                t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
-                                # Normalize t_tensor to scale values between 0 and 1
-                                t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
-                                # Move t_tensor to the appropriate device (e.g., GPU or CPU)
-                                t_tensor = t_tensor.to(device)
-
                                 # Predict the noise for this timestep
-                                predicted_noise = model(inputs, noisy_target, t_tensor)
-
-                                pred = noisy_target-predicted_noise
+                                pred = model(inputs)
 
                                 # Calculate loss with true noise
                                 loss = criterion(pred, targets)
@@ -265,7 +247,7 @@ def train(model, device, activation_function):
 
     # Unpack the inputs and targets from the first batch
     inputs, targets = first_batch
-    check_dead_neurons(model, inputs, targets, activation_function)
+    check_dead_neurons_autoencoder(model, inputs, targets, activation_function)
     
     del model
 
@@ -299,13 +281,13 @@ def test(model_type, device):
         model = nn.DataParallel(model)
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model.module, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     else:
-        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
     alpha_cumprod = get_noise_schedule()
 
-    pos_weight = torch.tensor([50.0], device=device)
+    pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
 
     test_losses = []
@@ -322,18 +304,8 @@ def test(model_type, device):
                 inputs, targets = data
                 targets = targets.float()
                 
-                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
-                t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
-                # Normalize t_tensor to scale values between 0 and 1
-                t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
-                # Move t_tensor to the appropriate device (e.g., GPU or CPU)
-                t_tensor = t_tensor.to(device)
-                
                 # Predict the noise for this timestep
-                predicted_noise = model(inputs, noisy_target, t_tensor)
-
-                pred = noisy_target-predicted_noise
+                pred = model(inputs)
 
                 # Calculate loss with true noise
                 loss = criterion(pred, targets)
@@ -351,7 +323,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='BigUNet', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 

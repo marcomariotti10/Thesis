@@ -89,9 +89,9 @@ def model_preparation(model_name, model_type, activation_function):
         model = nn.DataParallel(model)
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model.module, input_size=(5, 400, 400))
     else:
-        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model, input_size=(5, 400, 400))
     
     model.eval()
 
@@ -181,21 +181,9 @@ def show_predictions(model, device):
                 vertices = []
                 inputs, target = data
                 target = target.float()
-
-                random_noise = torch.zeros(size = (1,400,400), device = device)
-
-                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                noisy_target, noise = get_noisy_target(random_noise,alpha_cumprod, t)
-                t_tensor = t.view(-1, 1, 1, 1).expand_as(target)  # Reshape and expand to match targets' shape
-                # Normalize t_tensor to scale values between 0 and 1
-                t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
-                # Move t_tensor to the appropriate device (e.g., GPU or CPU)
-                t_tensor = t_tensor.to(device)
                 
                 # Predict the noise for this timestep
-                predicted_noise = model(inputs, noisy_target, t_tensor)
-
-                x_t = noisy_target-predicted_noise
+                x_t = model(inputs)
 
                 # Apply threshold to convert outputs to 0 or 1
                 threshold = 0.4
@@ -264,9 +252,9 @@ def show_predictions(model, device):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='BigUNet', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='BigUNet_autoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
-    parser.add_argument('--model_name', type=str, default='model_20250405_023242_loss_0.0032_BigUNet', help='Name of the model to load')
+    parser.add_argument('--model_name', type=str, default='model_20250406_191824_loss_0.0033_BigUNet_autoencoder', help='Name of the model to load')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]
@@ -288,9 +276,9 @@ if __name__ == '__main__':
     model, device = model_preparation(model_name, model_type, activation_function)
 
     try:
-        evaluate(model, device)
+        #evaluate(model, device)
 
-        #show_predictions(model, device)
+        show_predictions(model, device)
     
     except KeyboardInterrupt:
         print("\n program interrupted by user")

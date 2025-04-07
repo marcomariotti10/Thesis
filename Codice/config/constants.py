@@ -8,13 +8,13 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911_prove'
+DATA_HOME = HOME + r'/data_map03_0911_test'
 
 HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 
-NUMBER_OF_SENSORS = 6
+NUMBER_OF_SENSORS = 12
 
 LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
 LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'

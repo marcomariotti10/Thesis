@@ -1,10 +1,10 @@
 {
     "actors" : [
         {
-            "name" : "lidar6",
+            "name" : "lidar10",
             "location" : {
-                "x": -85.650,
-                "y": 27.850, 
+                "x": -68.46,
+                "y": -128.17, 
                 "z": 0.0
             },
             "rotation" : {

@@ -1,11 +1,11 @@
 {
     "actors" : [
         {
-            "name" : "lidar2",
+            "name" : "lidar5",
             "location" : {
-                "x": -100.59,
-                "y": 27.46, 
-                "z": 0.15
+                "x": -73.500,
+                "y": 9.250, 
+                "z": 0.0
             },
             "rotation" : {
                 "pitch" : 0.0,
@@ -28,7 +28,7 @@
                     "location" : {
                         "x": 0.0,
                         "y": 0.0, 
-                        "z": 5.85
+                        "z": 6.0
                     },
                     "rotation" : {
                         "pitch" : 0.0,
