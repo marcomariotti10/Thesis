@@ -78,8 +78,8 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
             files_lidar_chunck = all_files[k][ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(all_files[k]) ) ] #type: ignore
             all_files_chunck.append(files_lidar_chunck)
 
-        for j in range (NUMBER_OF_SENSORS):    
-            process_lidar_chunk(lidar_paths[j], position_paths[j], all_files_chunck[j], complete_grid_maps, complete_grid_maps_BB)
+        for j in range (NUMBER_OF_SENSORS): 
+            process_lidar_chunk (lidar_paths[j], position_paths[j], all_files_chunck[j], complete_grid_maps, complete_grid_maps_BB)
 
         print("\n")
         complete_grid_maps = np.array(complete_grid_maps)
@@ -90,6 +90,12 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
         
         #complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
         complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
+
+        if (chunk_type == 'val' or chunk_type == 'test'):
+            indices = np.arange(complete_grid_maps.shape[0])
+            np.random.shuffle(indices)
+            complete_grid_maps = complete_grid_maps[indices]
+            complete_grid_maps_BB = complete_grid_maps_BB[indices]
 
         print(f"complete grid map shape : {complete_grid_maps.shape}")
         print(f"complete grid map BB shape : {complete_grid_maps_BB.shape}")

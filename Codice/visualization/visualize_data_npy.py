@@ -101,7 +101,7 @@ if __name__ == '__main__':
         #print(f"Augmented grid map BB shape: {augmented_grid_maps_BB.shape}")
 
         # Visualize the original and augmented grid maps
-        for i in range(10):
+        for i in range(100):
             print("point BB original:", random_complete_grid_maps_BB[i][0][0][0], random_complete_grid_maps_BB[i][0][399][0], random_complete_grid_maps_BB[i][0][0][399], random_complete_grid_maps_BB[i][0][399][399])
             print("point original:", random_complete_grid_maps[i][0][0][0], random_complete_grid_maps[i][0][399][0], random_complete_grid_maps[i][0][0][399], random_complete_grid_maps[i][0][399][399])
             fig, ax = plt.subplots(2, 3, figsize=(10, 10))

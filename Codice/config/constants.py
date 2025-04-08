@@ -24,7 +24,6 @@ LIDAR_DIRECTORY = DATA_HOME + r'/1_original'
 
 NEW_POSITION_LIDAR_X_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidarX'
 POSITION_LIDAR_X_GRID = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
-POSITION_LIDAR_X_GRID_NO_BB = DATA_HOME + r'/5_positions_grid_map_no_BB/new_positions_lidarX_grid_no_BB'
 
 LIDAR_X_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_X'
 POSITION_X_TEST = DATA_HOME + r'/6_test/position_test/position_X'
@@ -63,7 +62,7 @@ FLOOR_HEIGHT = -100
 RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_X = [370, 100, 562, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+LIDAR_FILE_X = [60, 100, 562, 60, 10, 70, 10, 10, 10, 10, 10, 10]
 
 # For show_grid_and_BB and Conversion_BB_into_2,5D
 INCREMENT_BB_PEDESTIAN = 0.12
@@ -76,6 +75,9 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 
 # For generate_augmentation
 AUGMENTATION_FACTOR = 0.5
+
+# For Generate_chuncks
+MINIMUM_NUMBER_OF_RILEVATIONS = 1
 
 # For Neural_network
 SEED = 42

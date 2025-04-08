@@ -49,6 +49,7 @@ def load_points_grid_map(csv_file):
 def load_points_grid_map_BB (csv_file):
     """Load bounding box vertices from a CSV file."""
     points = []
+    indeces = []
     with open(csv_file, 'r') as file:
         reader = csv.reader(file)
         next(reader)  # Skip header
@@ -57,9 +58,11 @@ def load_points_grid_map_BB (csv_file):
             # Extract the 3D coordinates of the 8 bounding box vertices
             coordinates = [row[2]]
             points.append(coordinates)
+            indeces.append(row[0])
 
     np_points = np.array(points)
-    return np_points
+    indeces = np.array(indeces)
+    return np_points, indeces
 
 # Generate each pair of grid map and bounding box map to be used for the partial fit
 def generate_combined_grid_maps_fit(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, bool_value):
@@ -69,7 +72,7 @@ def generate_combined_grid_maps_fit(grid_map_path, grid_map_BB_path, grid_map_fi
         #print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
-        points_BB = load_points_grid_map_BB(complete_path_BB)
+        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
 
         all_pairs = []
 
@@ -119,10 +122,13 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
     #print(len(grid_map_files))
     
     for i in range(len(grid_map_files)):
+
+        actors = {}
         
         grid_map_group = []
 
         for j in range (NUMBER_RILEVATIONS_INPUT):
+
             complete_path = os.path.join(grid_map_path, grid_map_files[i][j])
 
             points = load_points_grid_map(complete_path)
@@ -133,24 +139,37 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
             grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(float)
 
             grid_map_group.append(grid_map_recreate)
-        
+
+            complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][NUMBER_RILEVATIONS_INPUT + j])
+
+            with open(complete_path_BB, 'r') as file_BB:
+                reader = csv.reader(file_BB)
+                next(reader)  # Skip header
+                for row in reader: 
+                    if row[3] == 'yes':
+                        if row[0] not in actors:
+                            actors[row[0]] = 1
+                        else:
+                            actors[row[0]] += 1
+
         #Save the input   
         complete_grid_maps.append(grid_map_group)
 
         complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][-1])
 
-        points_BB = load_points_grid_map_BB(complete_path_BB)
+        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
 
         all_pairs = []
 
         # Iterate through each row in the numpy array
-        for row in points_BB:
-            # Extract the string from the array
-            string_data = row[0]
-            # Safely evaluate the string to convert it into a list of tuples
-            pairs = ast.literal_eval(string_data)
-            # Add the pairs to the all_pairs list
-            all_pairs.extend(pairs)
+        for idx, row in enumerate(points_BB):
+            if indeces[idx] in actors and actors[indeces[idx]] >= MINIMUM_NUMBER_OF_RILEVATIONS:
+                # Extract the string from the array
+                string_data = row[0]
+                # Safely evaluate the string to convert it into a list of tuples
+                pairs = ast.literal_eval(string_data)
+                # Add the pairs to the all_pairs list
+                all_pairs.extend(pairs)
             
         all_pairs = np.array(all_pairs)
 
@@ -182,9 +201,10 @@ def generate_combined_list(files_lidar, files_BB):
         # Take NUMBER_RILEVATIONS_INPUT lidar files starting from the current index
         lidar_group = files_lidar[i:i + NUMBER_RILEVATIONS_INPUT]
         # Take the FUTURE_TARGET_RILEVATION-th BB file after the last lidar file
-        BB_file = files_BB[i + NUMBER_RILEVATIONS_INPUT + FUTURE_TARGET_RILEVATION - 1]
+        BB_files = files_BB[i:i + NUMBER_RILEVATIONS_INPUT]
+        BB_file_future = files_BB[i + NUMBER_RILEVATIONS_INPUT + FUTURE_TARGET_RILEVATION - 1]
         # Combine the lidar group and the BB file into one element
-        combined_list.append(lidar_group + [BB_file])
+        combined_list.append(lidar_group + BB_files + [BB_file_future])
 
     random.shuffle(combined_list)
     #print("len combined files", len(combined_list))

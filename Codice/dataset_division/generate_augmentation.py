@@ -64,6 +64,8 @@ if __name__ == '__main__':
         random_complete_grid_maps = complete_grid_maps[random_indices]
         random_complete_grid_maps_BB = complete_grid_maps_BB[random_indices]
 
+        del complete_grid_maps, complete_grid_maps_BB
+
         print(f"\nRandom complete grid maps shape: {random_complete_grid_maps.shape}")
         print(f"Random complete grid maps BB shape: {random_complete_grid_maps_BB.shape}")
 

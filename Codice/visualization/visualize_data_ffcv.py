@@ -48,5 +48,5 @@ if __name__ == "__main__":
     dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    loader = load_dataset('train', 1, device, 16)
+    loader = load_dataset('val', 1, device, 4)
     visualize_data(loader)

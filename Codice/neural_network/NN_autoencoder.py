@@ -159,8 +159,6 @@ def train(model, device, activation_function):
     best_val_loss = float('inf')  # Initialize best validation loss
     best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
 
-    alpha_cumprod = get_noise_schedule()
-
     for j in range(num_total_epochs):
         if early_stopping_triggered:
             break

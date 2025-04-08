@@ -44,8 +44,10 @@ def load_bounding_box(csv_file):
         reader = csv.reader(file)
         next(reader)  # Skip header
         for row in reader:
-            vertices = [row[2]]
-            bounding_box_vertices.append(vertices)
+            print(row[3])
+            if row[3] == 'yes':
+                vertices = [row[2]]
+                bounding_box_vertices.append(vertices)
     bounding_boxes = np.array(bounding_box_vertices)
     return bounding_boxes
 
