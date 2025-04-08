@@ -39,6 +39,47 @@ from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
 
+def calculate_dead_neuron(model, device):
+    # Function to calculate dead neuron percentage
+    def dead_neuron_percentage(activations):
+        # activations: (batch_size, num_neurons, height, width)
+        print(activations.shape)
+        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
+        # For each neuron, check if it was always zero across the batch
+        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
+        return 100.0 * dead_neurons / activations.shape[1]
+    
+    # Get the first batch of data
+    loader = load_dataset('val', 0, device, 16)
+    first_batch = next(iter(loader))
+
+    # Unpack the inputs and targets from the first batch
+    x, targets = first_batch
+
+    with torch.no_grad():
+        # Dynamically compute encoder activations
+        encoder_activations = []
+        activation = x
+        for layer in model.encoder:
+            activation = layer(activation)
+            encoder_activations.append(activation)
+
+        # Dynamically compute decoder activations
+        decoder_activations = []
+        activation = encoder_activations[-1]  # Start with the last encoder activation
+        for layer in model.decoder:
+            activation = layer(activation)
+            decoder_activations.append(activation)
+
+    # Calculate and print dead neuron percentages for encoder and decoder layers
+    print("ENCODER LAYERS\n")
+    for i, e_activation in enumerate(encoder_activations):
+        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
+
+    print("\nDECODER LAYERS\n")
+    for i, d_activation in enumerate(decoder_activations):
+        print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
+
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
         super(DiceLoss, self).__init__()
@@ -107,7 +148,6 @@ class WeightedBCELoss(nn.Module):
 def define_models(model_type, activation_function):
     # Model creation
     model = model_type(activation_fn=activation_function)
-    model.apply(initialize_weights)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -135,6 +175,16 @@ def define_models(model_type, activation_function):
         summary(model.module, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     else:
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
+
+    if model_type.__name__ != "BigUNet_autoencoder":
+        calculate_dead_neuron(model, device)
+
+    model.apply(initialize_weights)
+
+    print("----------------------------------------------------------------------")
+
+    if model_type.__name__ != "BigUNet_autoencoder":
+        calculate_dead_neuron(model, device)
     
     return model, device
 
@@ -239,13 +289,8 @@ def train(model, device, activation_function):
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
 
-    # Get the first batch of data
-    loader = load_dataset('val', 0, device, batch_size)
-    first_batch = next(iter(loader))
-
-    # Unpack the inputs and targets from the first batch
-    inputs, targets = first_batch
-    check_dead_neurons_autoencoder(model, inputs, targets, activation_function)
+    if model_type.__name__ != "BigUNet_autoencoder":
+        calculate_dead_neuron(model, device)
     
     del model
 
@@ -283,8 +328,6 @@ def test(model_type, device):
     else:
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
-    alpha_cumprod = get_noise_schedule()
-
     pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
 
@@ -321,7 +364,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='BigUNet_autoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 
@@ -356,3 +399,5 @@ if __name__ == "__main__":
     model_save_path = os.path.join(MODEL_DIR, model_name)
     torch.save(model_best.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')
+
+    torch.distributed.destroy_process_group()

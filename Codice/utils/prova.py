@@ -52,39 +52,60 @@ def initialize_weights(m):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
 
-# Function to calculate dead neuron percentage
-def dead_neuron_percentage(activations):
-    # activations: (batch_size, num_neurons, height, width)
-    print(activations.shape)
-    num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
-    # For each neuron, check if it was always zero across the batch
-    dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
-    return 100.0 * dead_neurons / activations.shape[1]
+
 
 # Instantiate the model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = Autoencoder_big().to(device)
 
+x = torch.rand(16, 1, 400, 400).to(device)  # Batch size of 16, 1 channel, 400x400 images
+
+with torch.no_grad():
+    # Dynamically compute encoder activations
+    encoder_activations = []
+    activation = x
+    for layer in model.encoder:
+        activation = layer(activation)
+        encoder_activations.append(activation)
+
+    # Dynamically compute decoder activations
+    decoder_activations = []
+    activation = encoder_activations[-1]  # Start with the last encoder activation
+    for layer in model.decoder:
+        activation = layer(activation)
+        decoder_activations.append(activation)
+
+# Calculate and print dead neuron percentages for encoder and decoder layers
+for i, e_activation in enumerate(encoder_activations):
+    print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
+
+for i, d_activation in enumerate(decoder_activations):
+    print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
+
 model.apply(initialize_weights)  # Apply weight initialization
 
 summary(model, (1, 400, 400))  # Print the model summary for input size (1, 400, 400)
 # Generate random input data and move it to the same device
-x = torch.rand(16, 1, 400, 400).to(device)  # Batch size of 16, 1 channel, 400x400 images
 
 # Forward pass to get activations
 with torch.no_grad():
-    e1 = model.encoder[1](model.encoder[0](x))  # First activation in encoder
-    e2 = model.encoder[4](model.encoder[3](model.encoder[2](e1)))  # Second activation in encoder
-    e3 = model.encoder[7](model.encoder[6](model.encoder[5](e2)))  # Third activation in encoder
+    # Dynamically compute encoder activations
+    encoder_activations = []
+    activation = x
+    for layer in model.encoder:
+        activation = layer(activation)
+        encoder_activations.append(activation)
 
-    d1 = model.decoder[1](model.decoder[0](e3))  # First activation in decoder
-    d2 = model.decoder[4](model.decoder[3](model.decoder[2](d1)))  # Second activation in decoder
-    d3 = model.decoder[7](model.decoder[6](model.decoder[5](d2)))  # Third activation in decoder
+    # Dynamically compute decoder activations
+    decoder_activations = []
+    activation = encoder_activations[-1]  # Start with the last encoder activation
+    for layer in model.decoder:
+        activation = layer(activation)
+        decoder_activations.append(activation)
 
-# Calculate and print dead neuron percentages
-print(f"Dead neurons in encoder layer 1: {dead_neuron_percentage(e1):.2f}%")
-print(f"Dead neurons in encoder layer 2: {dead_neuron_percentage(e2):.2f}%")
-print(f"Dead neurons in encoder layer 3: {dead_neuron_percentage(e3):.2f}%")
-print(f"Dead neurons in decoder layer 1: {dead_neuron_percentage(d1):.2f}%")
-print(f"Dead neurons in decoder layer 2: {dead_neuron_percentage(d2):.2f}%")
-print(f"Dead neurons in decoder layer 3: {dead_neuron_percentage(d3):.2f}%")
+# Calculate and print dead neuron percentages for encoder and decoder layers
+for i, e_activation in enumerate(encoder_activations):
+    print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
+
+for i, d_activation in enumerate(decoder_activations):
+    print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")

@@ -77,7 +77,15 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
 
             files_lidar_chunck = all_files[k][ i*files_for_chunck[k] : min( (i+1)*files_for_chunck[k], len(all_files[k]) ) ] #type: ignore
             all_files_chunck.append(files_lidar_chunck)
-
+        '''
+        with ThreadPoolExecutor(max_workers=NUMBER_OF_SENSORS) as executor:
+            futures = []
+            for j in range(NUMBER_OF_SENSORS):
+                futures.append(executor.submit(process_lidar_chunk, lidar_paths[j], position_paths[j], all_files_chunck[j], complete_grid_maps, complete_grid_maps_BB)) # type: ignore
+            
+            for future in futures:
+                complete_grid_maps, complete_grid_maps_BB = future.result()
+        '''
         for j in range (NUMBER_OF_SENSORS): 
             process_lidar_chunk (lidar_paths[j], position_paths[j], all_files_chunck[j], complete_grid_maps, complete_grid_maps_BB)
 

@@ -412,11 +412,11 @@ def weights_init(m):
 def initialize_weights(m):
     """Applies weight initialization to the model layers."""
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):  
-        init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')  
+        init.kaiming_normal_(m.weight)  
         if m.bias is not None:
             init.constant_(m.bias, 0)  
     elif isinstance(m, nn.Linear):  
-        init.xavier_normal_(m.weight)  
+        init.kaiming_normal_(m.weight)  
         if m.bias is not None:
             init.constant_(m.bias, 0)  
     elif isinstance(m, nn.BatchNorm2d):  
@@ -561,7 +561,7 @@ class Autoencoder_classic(nn.Module):
     def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
         super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 32, kernel_size=3, padding=1),
             activation_fn(),
             nn.MaxPool2d(2, stride = 2),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
