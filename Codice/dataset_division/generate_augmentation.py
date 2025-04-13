@@ -72,7 +72,7 @@ if __name__ == '__main__':
         augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB)
 
         del random_complete_grid_maps, random_complete_grid_maps_BB
-
+        
         augmented_grid_maps = np.array(augmented_grid_maps)
         augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
 
@@ -85,18 +85,4 @@ if __name__ == '__main__':
         np.save(os.path.join(complete_name_chunck_path, f'augmented_grid_maps_BB_train_{i}.npy'), augmented_grid_maps_BB)
         print(f"augmented grid map BB train {i} saved")
 
-        '''
-        i = 0
-
-        # Visualize the original and augmented grid maps
-        for i in range(10):
-            fig, ax = plt.subplots(2, 2, figsize=(10, 10))
-            ax[0,0].imshow(random_complete_grid_maps[i][0], cmap='gray')
-            ax[0,1].imshow(random_complete_grid_maps_BB[i][0], cmap='gray')
-
-            ax[1,0].imshow(augmented_grid_maps[i][0], cmap='gray')
-            ax[1,1].imshow(augmented_grid_maps_BB[i][0], cmap='gray')
-
-            plt.show()
-        '''
             

@@ -8,13 +8,13 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911_test'
+DATA_HOME = HOME + r'/data_map03_0911_prove'
 
 HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 
-NUMBER_OF_SENSORS = 12
+NUMBER_OF_SENSORS = 6
 
 LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
 LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'
@@ -62,7 +62,7 @@ FLOOR_HEIGHT = -100
 RANGE_FOR_ROTATED_VEHICLES = 0.1 # To identify the bounding box of rotated vehicles that are partially outside the grid
 
 # For Show_lidar_data and Show_grid_map
-LIDAR_FILE_X = [60, 100, 562, 60, 10, 70, 10, 10, 10, 10, 10, 10]
+LIDAR_FILE_X = [60, 100, 562, 50, 10, 70, 10, 10, 10, 10, 10, 10]
 
 # For show_grid_and_BB and Conversion_BB_into_2,5D
 INCREMENT_BB_PEDESTIAN = 0.12
@@ -86,8 +86,11 @@ NUMBER_OF_CHUNCKS = 3
 NUMBER_OF_CHUNCKS_TEST = 2
 
 NUMBER_RILEVATIONS_INPUT = 5
-FUTURE_TARGET_RILEVATION = 5 # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
+FUTURE_TARGET_RILEVATION = [5,10,15,20] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
+SELECTED_FUTURE_INDEX = 0
 
 MINIMUM_BETHA = 1e-1
 MAXIMUM_BETHA = 0.5
-RANGE_TIMESTEPS = 100
+RANGE_TIMESTEPS = 1000
+
+BATCH_SIZE = 4

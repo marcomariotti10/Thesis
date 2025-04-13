@@ -130,10 +130,10 @@ def evaluate(model, device):
                 x_t = torch.full_like(targets,0, device = device)
                 #x_t = torch.randn_like(targets)
 
-                print(x_t.shape)
+                #print(x_t.shape)
 
                 t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                noisy_target, noise = get_noisy_target(x_t,alpha_cumprod, t)
+                noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
                 t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
                 # Normalize t_tensor to scale values between 0 and 1
                 t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
@@ -158,34 +158,32 @@ def evaluate(model, device):
 
 
 def show_predictions(model, device):
-
-    alpha_cumprod = get_noise_schedule()
+    
+    # Load the noise schedule
+    beta, alpha, alpha_cumprod = get_noise_schedule()
 
     batch_size = 1
-    
     sigmoid = torch.nn.Sigmoid()
+    eps = 1e-5  # Small value to avoid NaNs
 
-    for i in range(NUMBER_OF_CHUNCKS_TEST): #type: ignore
-        
-        print(f"\nChunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}")
-        
-        test_loader = load_dataset('test', i, device, batch_size)
+    for chunk_id in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
+        print(f"\nChunk number {chunk_id + 1} of {NUMBER_OF_CHUNCKS_TEST}")
+        test_loader = load_dataset('test', chunk_id, device, batch_size)
+        print("Length of dataset:", len(test_loader))
 
-        print("\nLenght of the datasets:", len(test_loader))        
-        
-        # Make predictions
+        model.eval()
         with torch.no_grad():
             for data in test_loader:
                 predictions = []
                 grid_maps = []
                 vertices = []
                 inputs, target = data
-                target = target.float()
+                inputs = inputs.to(device)
+                target = target.float().to(device)
 
-                random_noise = torch.zeros(size = (1,400,400), device = device)
-
+                '''
                 t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
-                noisy_target, noise = get_noisy_target(random_noise,alpha_cumprod, t)
+                noisy_target, noise = get_noisy_target(target,alpha_cumprod, t)
                 t_tensor = t.view(-1, 1, 1, 1).expand_as(target)  # Reshape and expand to match targets' shape
                 # Normalize t_tensor to scale values between 0 and 1
                 t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)
@@ -197,50 +195,64 @@ def show_predictions(model, device):
 
                 x_t = noisy_target-predicted_noise
 
-                # Apply threshold to convert outputs to 0 or 1
+                if t > 0:
+                    noise = torch.randn_like(x_t)
+                else:
+                    noise = torch.zeros_like(x_t)
+
+                alpha_t = alpha[t].to(device)
+                alpha_bar_t = alpha_cumprod[t].to(device)
+                beta_t = 1.0 - alpha_t
+
+                x_t = noisy_target - predicted_noise
+
+                # Denoising step (DDPM reverse update)
+                #x_t = (1.0 / torch.sqrt(alpha_t)) * (
+                #    x_t - (beta_t / torch.sqrt(1 - alpha_bar_t)) * predicted_noise
+                #) + torch.sqrt(beta_t) * noise
+
+                '''
+
+                # Start from pure noise
+                x_t = torch.rand_like(target).to(device)
+
+                for t in reversed(range(RANGE_TIMESTEPS)):
+                    t_batch = torch.full((batch_size,), t, dtype=torch.long, device=device)
+                    t_tensor = t_batch.view(-1, 1, 1, 1).float() / (RANGE_TIMESTEPS - 1)
+                    t_tensor = t_tensor.expand_as(target)
+
+                    x_t, noise = get_noisy_target(x_t,alpha_cumprod, t)
+
+                    # Predict the noise at this timestep
+                    predicted_noise = model(inputs, x_t, t_tensor)
+                    # Soft clamp (less aggressive)
+                    #predicted_noise = torch.tanh(predicted_noise)
+
+                    # Clamp values to avoid numerical issues
+                    alpha_t = alpha[t].to(device)
+                    alpha_bar_t = alpha_cumprod[t].to(device)
+                    beta_t = 1.0 - alpha_t
+
+                    #if t > 0:
+                    #    noise = torch.zeros_like(x_t)
+                    #else:
+                    #    noise = torch.zeros_like(x_t)
+
+                    # Denoising step (DDPM reverse update)
+                    x_t = (x_t - torch.sqrt(1 - alpha_t) * predicted_noise) / torch.sqrt(alpha_t)
+
+                    # Optional debug logging
+                    if t % 20 == 0:
+                        print(f"t={t} | mean: {x_t.mean().item():.4f} | std: {x_t.std().item():.4f}")
+
+                #'''
+
+                # Convert final image to probability
+                #x_t = sigmoid(x_t)
+
                 threshold = 0.4
                 x_t = (x_t > threshold).float()
 
-
-                '''
-                #x_t, noise = get_noisy_target(target,alpha_cumprod, 50)
-                x_t = torch.randn_like(target)
-                
-                
-                for t in range (50, -1, -1):
-                    print(t)
-                    t_tensor = torch.full_like(target,t)  # Reshape and expand to match targets' shape
-                    #print("t_tensor:", t_tensor)
-                    t_tensor = t_tensor / (RANGE_TIMESTEPS - 1) # Normalize t_tensor to scale values between 0 and 1                   
-                    t_tensor = t_tensor.to(device) # Move t_tensor to GPU
-                    
-
-                    x_t = x_t.to(device)  # Move x_t to GPU
-                    t_tensor = t_tensor.to(device)  # Move t_tensor to GPU
-
-                    # Predict the noise for this timestep
-                    predicted_noise = model(inputs, x_t, t_tensor)
-
-                    x_t = x_t - predicted_noise
-
-
-
-                    if t == 0:
-                        x_t = x_t - predicted_noise
-                    else:
-                        alpha_t = alpha_cumprod[t-1].view(1, 1, 1)  # Reshape for broadcasting
-                        #print("alpha_t:", alpha_t)
-                        alpha_t = alpha_t.to(device)  # Move alpha_t to GPU
-                        x_t = (x_t - (1 - alpha_t).sqrt() * predicted_noise) / alpha_t.sqrt()
-
-                    if t > 0:
-                        noise = torch.randn_like(x_t)  # New noise
-                        x_t = x_t + noise * 0.1  # Adjust noise level based on schedule
-
-                    '''
-
-                # Calculate loss with true noise
-                x_t = sigmoid(x_t)
                 predictions.append(x_t)
                 predictions = torch.cat(predictions).cpu().numpy()
                 print("Predictions Shape:", predictions.shape)
@@ -257,7 +269,13 @@ def show_predictions(model, device):
                 vertices = vertices.reshape(-1, 400, 400)
                 
                 for i in range(batch_size):
+                    print(predictions[i][200])
+
+
                     visualize_prediction(predictions[i], vertices[i], grid_maps[i])
+
+                # Reshape and prepare for visualization
+
 
 
 
@@ -266,7 +284,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
     parser.add_argument('--model_type', type=str, default='BigUNet', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
-    parser.add_argument('--model_name', type=str, default='model_20250405_023242_loss_0.0032_BigUNet', help='Name of the model to load')
+    parser.add_argument('--model_name', type=str, default='model_20250404_224109_loss_0.2135_BigUNet_lossnoise', help='Name of the model to load')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]
@@ -288,9 +306,9 @@ if __name__ == '__main__':
     model, device = model_preparation(model_name, model_type, activation_function)
 
     try:
-        evaluate(model, device)
+        #evaluate(model, device)
 
-        #show_predictions(model, device)
+        show_predictions(model, device)
     
     except KeyboardInterrupt:
         print("\n program interrupted by user")

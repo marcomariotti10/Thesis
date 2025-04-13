@@ -97,7 +97,7 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
         complete_grid_maps = scaler_X.transform(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1])).reshape(complete_grid_maps.shape)
         
         #complete_grid_maps = np.expand_dims(complete_grid_maps, axis=1)
-        complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
+        #complete_grid_maps_BB = np.expand_dims(complete_grid_maps_BB, axis=1)
 
         if (chunk_type == 'val' or chunk_type == 'test'):
             indices = np.arange(complete_grid_maps.shape[0])

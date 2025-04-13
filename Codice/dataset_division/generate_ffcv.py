@@ -51,8 +51,8 @@ def load_dataset_NPY(name, i):
 
 if __name__ == '__main__':
 
-    shape_input = (5,400,400)  # Shape of each sample
-    shape_target = (1,400,400)  # Shape of each target
+    shape_input = (NUMBER_RILEVATIONS_INPUT,400,400)  # Shape of each sample
+    shape_target = (len(FUTURE_TARGET_RILEVATION),400,400)  # Shape of each target
 
     complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
     

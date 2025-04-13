@@ -8,7 +8,7 @@ def start_preproces(script_name, user_input):
 if __name__ == "__main__":
     scripts = [
         #"fit_entire_dataset.py",
-        #"separation_train_val_test.py",
+        "separation_train_val_test.py",
         "generate_chuncks.py",
         "generate_augmentation.py",
         "combine_augmentation.py",

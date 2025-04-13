@@ -105,7 +105,7 @@ def evaluate(model, device):
     pos_weight = torch.tensor([1.0], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
 
-    batch_size = 8
+    batch_size = BATCH_SIZE
 
     alpha_cumprod = get_noise_schedule()
 
@@ -145,7 +145,7 @@ def evaluate(model, device):
 
                 pred = noisy_target-predicted_noise
 
-                loss = criterion(pred,targets)
+                loss = F.mse_loss(predicted_noise,noise)
 
                 test_loss += loss.item()
         test_loss /= len(test_loader)
@@ -158,8 +158,6 @@ def evaluate(model, device):
 
 
 def show_predictions(model, device):
-
-    alpha_cumprod = get_noise_schedule()
 
     batch_size = 1
     
@@ -180,7 +178,7 @@ def show_predictions(model, device):
                 grid_maps = []
                 vertices = []
                 inputs, target = data
-                target = target.float()
+                target = target[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
                 
                 # Predict the noise for this timestep
                 x_t = model(inputs)
@@ -188,44 +186,6 @@ def show_predictions(model, device):
                 # Apply threshold to convert outputs to 0 or 1
                 threshold = 0.4
                 x_t = (x_t > threshold).float()
-
-
-                '''
-                #x_t, noise = get_noisy_target(target,alpha_cumprod, 50)
-                x_t = torch.randn_like(target)
-                
-                
-                for t in range (50, -1, -1):
-                    print(t)
-                    t_tensor = torch.full_like(target,t)  # Reshape and expand to match targets' shape
-                    #print("t_tensor:", t_tensor)
-                    t_tensor = t_tensor / (RANGE_TIMESTEPS - 1) # Normalize t_tensor to scale values between 0 and 1                   
-                    t_tensor = t_tensor.to(device) # Move t_tensor to GPU
-                    
-
-                    x_t = x_t.to(device)  # Move x_t to GPU
-                    t_tensor = t_tensor.to(device)  # Move t_tensor to GPU
-
-                    # Predict the noise for this timestep
-                    predicted_noise = model(inputs, x_t, t_tensor)
-
-                    x_t = x_t - predicted_noise
-
-
-
-                    if t == 0:
-                        x_t = x_t - predicted_noise
-                    else:
-                        alpha_t = alpha_cumprod[t-1].view(1, 1, 1)  # Reshape for broadcasting
-                        #print("alpha_t:", alpha_t)
-                        alpha_t = alpha_t.to(device)  # Move alpha_t to GPU
-                        x_t = (x_t - (1 - alpha_t).sqrt() * predicted_noise) / alpha_t.sqrt()
-
-                    if t > 0:
-                        noise = torch.randn_like(x_t)  # New noise
-                        x_t = x_t + noise * 0.1  # Adjust noise level based on schedule
-
-                    '''
 
                 # Calculate loss with true noise
                 x_t = sigmoid(x_t)
@@ -252,9 +212,9 @@ def show_predictions(model, device):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='BigUNet_autoencoder', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_big', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
-    parser.add_argument('--model_name', type=str, default='model_20250406_191824_loss_0.0033_BigUNet_autoencoder', help='Name of the model to load')
+    parser.add_argument('--model_name', type=str, default='model_20250408_180725_loss_0.0160_Autoencoder_big', help='Name of the model to load')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]

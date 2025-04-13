@@ -39,47 +39,6 @@ from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
 
-def calculate_dead_neuron(model, device):
-    # Function to calculate dead neuron percentage
-    def dead_neuron_percentage(activations):
-        # activations: (batch_size, num_neurons, height, width)
-        print(activations.shape)
-        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
-        # For each neuron, check if it was always zero across the batch
-        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
-        return 100.0 * dead_neurons / activations.shape[1]
-    
-    # Get the first batch of data
-    loader = load_dataset('val', 0, device, 16)
-    first_batch = next(iter(loader))
-
-    # Unpack the inputs and targets from the first batch
-    x, targets = first_batch
-
-    with torch.no_grad():
-        # Dynamically compute encoder activations
-        encoder_activations = []
-        activation = x
-        for layer in model.encoder:
-            activation = layer(activation)
-            encoder_activations.append(activation)
-
-        # Dynamically compute decoder activations
-        decoder_activations = []
-        activation = encoder_activations[-1]  # Start with the last encoder activation
-        for layer in model.decoder:
-            activation = layer(activation)
-            decoder_activations.append(activation)
-
-    # Calculate and print dead neuron percentages for encoder and decoder layers
-    print("ENCODER LAYERS\n")
-    for i, e_activation in enumerate(encoder_activations):
-        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
-
-    print("\nDECODER LAYERS\n")
-    for i, d_activation in enumerate(decoder_activations):
-        print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
-
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
         super(DiceLoss, self).__init__()
@@ -176,14 +135,14 @@ def define_models(model_type, activation_function):
     else:
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
-    if model_type.__name__ != "BigUNet_autoencoder":
+    if "UNet" not in model_type.__name__:
         calculate_dead_neuron(model, device)
 
     model.apply(initialize_weights)
 
     print("----------------------------------------------------------------------")
 
-    if model_type.__name__ != "BigUNet_autoencoder":
+    if "UNet" not in model_type.__name__:
         calculate_dead_neuron(model, device)
     
     return model, device
@@ -203,7 +162,7 @@ def train(model, device, activation_function):
     num_total_epochs = 100
     num_epochs_for_each_chunck = 1
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
-    batch_size = 8
+    batch_size = BATCH_SIZE
 
     os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
@@ -234,8 +193,7 @@ def train(model, device, activation_function):
                 for data in train_loader:
                     
                     inputs, targets = data
-                    targets = targets.float()
-
+                    targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
                     optimizer.zero_grad()
 
                     # Predict the noise for this timestep
@@ -259,7 +217,7 @@ def train(model, device, activation_function):
                         with torch.no_grad():
                             for data in val_loader:
                                 inputs, targets = data
-                                targets = targets.float()
+                                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
 
                                 # Predict the noise for this timestep
                                 pred = model(inputs)
@@ -289,14 +247,14 @@ def train(model, device, activation_function):
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
 
-    if model_type.__name__ != "BigUNet_autoencoder":
+    if "UNet" not in model_type.__name__:
         calculate_dead_neuron(model, device)
     
     del model
 
 def test(model_type, device):
 
-    batch_size = 8
+    batch_size = BATCH_SIZE
 
     model = model_type(activation_fn=activation_function)
 
@@ -343,7 +301,7 @@ def test(model_type, device):
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets.float()
+                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
                 
                 # Predict the noise for this timestep
                 pred = model(inputs)

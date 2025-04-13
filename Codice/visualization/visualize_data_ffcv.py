@@ -22,14 +22,15 @@ def visualize_data(loader):
 
         for i in range(min(20, len(images))):  # Visualize first 5 images
             
-            fig, ax = plt.subplots(2,3,figsize=(10, 10))
-            ax[0,0].imshow(images[i][0], cmap='gray')
-            ax[0,1].imshow(images[i][1], cmap='gray')
-            ax[0,2].imshow(images[i][2], cmap='gray')
-            ax[1,0].imshow(images[i][3], cmap='gray')
-            ax[1,1].imshow(images[i][4], cmap='gray')
-            ax[1,2].imshow(labels[i].squeeze(), cmap='jet', alpha=0.5)
-            ax[1,2].imshow(images[i][4], cmap='gray', alpha=0.5)
+            fig, ax = plt.subplots(2,2,figsize=(10, 10))
+            ax[0,0].imshow(labels[i][0], cmap='jet', alpha=0.5)
+            ax[0,0].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[0,1].imshow(labels[i][1], cmap='jet', alpha=0.5)
+            ax[0,1].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[1,0].imshow(labels[i][2], cmap='jet', alpha=0.5)
+            ax[1,0].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[1,1].imshow(labels[i][3], cmap='jet', alpha=0.5)
+            ax[1,1].imshow(images[i][4], cmap='gray', alpha=0.5)
             plt.show()
 
 
@@ -48,5 +49,5 @@ if __name__ == "__main__":
     dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    loader = load_dataset('val', 1, device, 4)
+    loader = load_dataset('train', 1, device, 4)
     visualize_data(loader)

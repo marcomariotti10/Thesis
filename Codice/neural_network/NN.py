@@ -107,7 +107,6 @@ class WeightedBCELoss(nn.Module):
 def define_models(model_type, activation_function):
     # Model creation
     model = model_type(activation_fn=activation_function)
-    model.apply(initialize_weights)
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -132,20 +131,30 @@ def define_models(model_type, activation_function):
     print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model.module, input_size=[(NUMBER_RILEVATIONS_INPUT, 400, 400), (1, 400, 400), (1,400,400)])
     else:
-        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model, input_size=[(NUMBER_RILEVATIONS_INPUT, 400, 400), (1, 400, 400), (1,400,400)])
+
+    if "UNet" not in model_type.__name__:
+        calculate_dead_neuron(model, device)
+
+    model.apply(initialize_weights)
+
+    print("----------------------------------------------------------------------")
+
+    if "UNet" not in model_type.__name__:
+        calculate_dead_neuron(model, device)
     
     return model, device
 
 def train(model, device, activation_function):
     
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
-    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
+    early_stopping = EarlyStopping(patience=15, min_delta=0.0001)
     
-    pos_weight = torch.tensor([50.0], device=device)
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
+    pos_weight = torch.tensor([1.0], device=device)
+    criterion = torch.nn.MSELoss()
    
     # Parameters for training
     early_stopping_triggered = False
@@ -153,13 +162,13 @@ def train(model, device, activation_function):
     num_total_epochs = 100
     num_epochs_for_each_chunck = 1
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
-    batch_size = 8
+    batch_size = BATCH_SIZE
 
     os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
     best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
 
-    alpha_cumprod = get_noise_schedule()
+    beta_t, alpha_t, alpha_cumprod = get_noise_schedule()
 
     for j in range(num_total_epochs):
         if early_stopping_triggered:
@@ -186,15 +195,21 @@ def train(model, device, activation_function):
                 for data in train_loader:
                     
                     inputs, targets = data
-                    targets = targets.float()
+                    targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
 
                     optimizer.zero_grad()
                     
-                    t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                    t = torch.randint(0, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
                     noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
                     t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
                     t_tensor = t_tensor / (RANGE_TIMESTEPS - 1) # Normalize t_tensor to scale values between 0 and 1                   
                     t_tensor = t_tensor.to(device) # Move t_tensor to GPU
+
+                    mask_prob = 0.5  # 30% of the time, mask the noisy_target
+                    mask = torch.rand((targets.size(0), 1, 1, 1), device=device) < mask_prob
+                    random_replacement = torch.randn_like(noisy_target)  # Random noise
+                    noisy_target = torch.where(mask, random_replacement, noisy_target)  # Replace masked samples
+
 
                     # Predict the noise for this timestep
                     predicted_noise = model(inputs, noisy_target, t_tensor)
@@ -202,7 +217,7 @@ def train(model, device, activation_function):
                     pred = noisy_target-predicted_noise
 
                     # Calculate loss with true noise
-                    loss = criterion(pred, targets)
+                    loss = F.mse_loss(predicted_noise, noise)
                     
                     loss.backward()
                     optimizer.step()
@@ -219,9 +234,9 @@ def train(model, device, activation_function):
                         with torch.no_grad():
                             for data in val_loader:
                                 inputs, targets = data
-                                targets = targets.float()
+                                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
 
-                                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                                t = torch.randint(0, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
                                 noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
                                 t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
                                 # Normalize t_tensor to scale values between 0 and 1
@@ -235,7 +250,7 @@ def train(model, device, activation_function):
                                 pred = noisy_target-predicted_noise
 
                                 # Calculate loss with true noise
-                                loss = criterion(pred, targets)
+                                loss = F.mse_loss(predicted_noise, noise)
             
                                 val_loss += loss.item()
                         val_loss /= len(val_loader)
@@ -258,20 +273,15 @@ def train(model, device, activation_function):
                             break
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
-
-    # Get the first batch of data
-    loader = load_dataset('val', 0, device, batch_size)
-    first_batch = next(iter(loader))
-
-    # Unpack the inputs and targets from the first batch
-    inputs, targets = first_batch
-    check_dead_neurons(model, inputs, targets, activation_function)
+                    
+    if "UNet" not in model_type.__name__:
+        calculate_dead_neuron(model, device)
     
     del model
 
 def test(model_type, device):
 
-    batch_size = 8
+    batch_size = BATCH_SIZE
 
     model = model_type(activation_fn=activation_function)
 
@@ -299,14 +309,14 @@ def test(model_type, device):
         model = nn.DataParallel(model)
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model.module, input_size=[(NUMBER_RILEVATIONS_INPUT, 400, 400), (1, 400, 400), (1,400,400)])
     else:
-        summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
+        summary(model, input_size=[(NUMBER_RILEVATIONS_INPUT, 400, 400), (1, 400, 400), (1,400,400)])
 
-    alpha_cumprod = get_noise_schedule()
+    beta_t, alpha_t, alpha_cumprod = get_noise_schedule()
 
     pos_weight = torch.tensor([50.0], device=device)
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
+    criterion = torch.nn.MSELoss()
 
     test_losses = []
     for i in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
@@ -320,9 +330,9 @@ def test(model_type, device):
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets.float()
+                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
                 
-                t = torch.randint(5, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
+                t = torch.randint(0, RANGE_TIMESTEPS, (batch_size,))  # Random timestep
                 noisy_target, noise = get_noisy_target(targets,alpha_cumprod, t)
                 t_tensor = t.view(-1, 1, 1, 1).expand_as(targets)  # Reshape and expand to match targets' shape
                 # Normalize t_tensor to scale values between 0 and 1
@@ -336,7 +346,7 @@ def test(model_type, device):
                 pred = noisy_target-predicted_noise
 
                 # Calculate loss with true noise
-                loss = criterion(pred, targets)
+                loss = F.mse_loss(predicted_noise, noise)
 
                 test_loss += loss.item()
         test_loss /= len(test_loader)

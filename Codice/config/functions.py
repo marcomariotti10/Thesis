@@ -152,34 +152,40 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
                         else:
                             actors[row[0]] += 1
 
-        #Save the input   
         complete_grid_maps.append(grid_map_group)
 
-        complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][-1])
+        grid_map_BB_group = []
 
-        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
+        #Save the input
+        for k in range(len(FUTURE_TARGET_RILEVATION)):   
 
-        all_pairs = []
+            complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][-len(FUTURE_TARGET_RILEVATION) + k])
 
-        # Iterate through each row in the numpy array
-        for idx, row in enumerate(points_BB):
-            if indeces[idx] in actors and actors[indeces[idx]] >= MINIMUM_NUMBER_OF_RILEVATIONS:
-                # Extract the string from the array
-                string_data = row[0]
-                # Safely evaluate the string to convert it into a list of tuples
-                pairs = ast.literal_eval(string_data)
-                # Add the pairs to the all_pairs list
-                all_pairs.extend(pairs)
-            
-        all_pairs = np.array(all_pairs)
+            points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
 
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
+            all_pairs = []
 
-        if len(all_pairs) != 0:
-            cols, rows = all_pairs.T
-            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
+            # Iterate through each row in the numpy array
+            for idx, row in enumerate(points_BB):
+                if indeces[idx] in actors and actors[indeces[idx]] >= MINIMUM_NUMBER_OF_RILEVATIONS:
+                    # Extract the string from the array
+                    string_data = row[0]
+                    # Safely evaluate the string to convert it into a list of tuples
+                    pairs = ast.literal_eval(string_data)
+                    # Add the pairs to the all_pairs list
+                    all_pairs.extend(pairs)
+                
+            all_pairs = np.array(all_pairs)
 
-        complete_grid_maps_BB.append(grid_map_recreate_BB)
+            grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
+
+            if len(all_pairs) != 0:
+                cols, rows = all_pairs.T
+                grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
+
+            grid_map_BB_group.append(grid_map_recreate_BB)
+
+        complete_grid_maps_BB.append(grid_map_BB_group)
 
 def generate_combined_list(files_lidar, files_BB):
     """
@@ -197,17 +203,20 @@ def generate_combined_list(files_lidar, files_BB):
     """
     combined_list = []
     #print("\nlen files_lidar:", len(files_lidar))
-    for i in range(0, len(files_lidar) - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION + 1, NUMBER_RILEVATIONS_INPUT):
+    for i in range(0, len(files_lidar) - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION[-1] + 1, NUMBER_RILEVATIONS_INPUT):
         # Take NUMBER_RILEVATIONS_INPUT lidar files starting from the current index
         lidar_group = files_lidar[i:i + NUMBER_RILEVATIONS_INPUT]
         # Take the FUTURE_TARGET_RILEVATION-th BB file after the last lidar file
         BB_files = files_BB[i:i + NUMBER_RILEVATIONS_INPUT]
-        BB_file_future = files_BB[i + NUMBER_RILEVATIONS_INPUT + FUTURE_TARGET_RILEVATION - 1]
+        BB_file_future = []
+        for j in range(len(FUTURE_TARGET_RILEVATION)):
+            BB_file_future.append(files_BB[i + NUMBER_RILEVATIONS_INPUT + FUTURE_TARGET_RILEVATION[j] - 1])
         # Combine the lidar group and the BB file into one element
-        combined_list.append(lidar_group + BB_files + [BB_file_future])
+        combined_list.append(lidar_group + BB_files + BB_file_future)
 
     random.shuffle(combined_list)
     #print("len combined files", len(combined_list))
+    #print("len conbined list:", len(combined_list[2]))
     return combined_list
 
 def fill_polygon(grid_map, vertices, height):
@@ -272,8 +281,11 @@ def apply_augmentation(random_gm, random_BB):
         grid_map = np.copy(random_gm[i])
         grid_map_BB = np.copy(random_BB[i])
 
+        #print("grid_map shape", grid_map.shape)
+        #print("grid_map_BB shape", grid_map_BB.shape)
+
         # Ensure grid_map_BB has the same shape as grid_map
-        grid_map_BB = np.squeeze(grid_map_BB)  # Remove the extra dimension (if present)
+        #grid_map_BB = np.squeeze(grid_map_BB)  # Remove the extra dimension (if present)
 
         # Define augmentation probabilities
         augmentations = [
@@ -309,23 +321,46 @@ def apply_augmentation(random_gm, random_BB):
                 shift = int(random.uniform(-100, -50)) if random.random() < 0.5 else int(random.uniform(50, 100))
                 #print("shift", shift)
                 axis = random.choice([0, 1])  # Randomly choose vertical or horizontal shift
+                #print("axis", axis)
                 augmentation = lambda img: random_shift(img, axis=axis, shift=shift)
             elif augmentation_type[0] == 'flip':
                 flip_code = random.choice([0, 1])  # 0 for vertical flip, 1 for horizontal flip
+                #print("flip_code", flip_code)
                 augmentation = lambda img: cv2.flip(img, flip_code)
 
             # Apply the augmentation to all images in the group
             for k in range(grid_map.shape[0]):
                 grid_map[k] = augmentation(grid_map[k])
-            grid_map_BB = augmentation(grid_map_BB)
+            for z in range(grid_map_BB.shape[0]):
+                grid_map_BB[z] = augmentation(grid_map_BB[z])
 
-        grid_map_BB = np.expand_dims(grid_map_BB, axis=0)  # Add the extra dimension back
+        #grid_map_BB = np.expand_dims(grid_map_BB, axis=0)  # Add the extra dimension back
         
         #print("first and second augmentation", first_augmentation, second_augmentation)
 
         augmented_grid_maps.append(grid_map)
         augmented_grid_maps_BB.append(grid_map_BB)
-    
+
+        #print("first augmentation", first_augmentation)
+        #print("second augmentation", second_augmentation)
+
+        '''
+        fig, ax = plt.subplots(4, 2, figsize=(10, 10))
+        ax[0,0].imshow(random_gm[i][0], cmap='gray')
+        ax[0,1].imshow(random_BB[i][0], cmap='gray')
+
+        ax[1,0].imshow(grid_map[0], cmap='gray')
+        ax[1,1].imshow(grid_map_BB[0], cmap='gray')
+
+        ax[2,0].imshow(random_gm[i][3], cmap='gray')
+        ax[2,1].imshow(random_BB[i][3], cmap='gray')
+
+        ax[3,0].imshow(grid_map[3], cmap='gray')
+        ax[3,1].imshow(grid_map_BB[3], cmap='gray')
+
+        plt.show()
+        '''
+
     return augmented_grid_maps, augmented_grid_maps_BB
 
 
@@ -773,7 +808,7 @@ def get_noise_schedule():
     beta_t = torch.linspace(MINIMUM_BETHA, MAXIMUM_BETHA, RANGE_TIMESTEPS)  # Noise schedule
     alpha_t = 1.0 - beta_t
     alpha_cumprod = torch.cumprod(alpha_t, dim=0)  # Cumulative product of alpha
-    return alpha_cumprod
+    return beta_t, alpha_t, alpha_cumprod
 
 def get_noisy_target(x0, alpha_cumprod, t):
     """
@@ -1058,3 +1093,44 @@ def train_step_old(model, optimizer, past_frames, future_frame, alpha_cumprod, T
     optimizer.step()
 
     return total_loss.item()
+
+def calculate_dead_neuron(model, device):
+    # Function to calculate dead neuron percentage
+    def dead_neuron_percentage(activations):
+        # activations: (batch_size, num_neurons, height, width)
+        print(activations.shape)
+        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
+        # For each neuron, check if it was always zero across the batch
+        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
+        return 100.0 * dead_neurons / activations.shape[1]
+    
+    # Get the first batch of data
+    loader = load_dataset('val', 0, device, 16)
+    first_batch = next(iter(loader))
+
+    # Unpack the inputs and targets from the first batch
+    x, targets = first_batch
+
+    with torch.no_grad():
+        # Dynamically compute encoder activations
+        encoder_activations = []
+        activation = x
+        for layer in model.encoder:
+            activation = layer(activation)
+            encoder_activations.append(activation)
+
+        # Dynamically compute decoder activations
+        decoder_activations = []
+        activation = encoder_activations[-1]  # Start with the last encoder activation
+        for layer in model.decoder:
+            activation = layer(activation)
+            decoder_activations.append(activation)
+
+    # Calculate and print dead neuron percentages for encoder and decoder layers
+    print("ENCODER LAYERS\n")
+    for i, e_activation in enumerate(encoder_activations):
+        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
+
+    print("\nDECODER LAYERS\n")
+    for i, d_activation in enumerate(decoder_activations):
+        print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
