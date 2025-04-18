@@ -27,17 +27,23 @@ def visualize_prediction(pred, gt, map):
     - grid_map: numpy array of shape (400, 400)
     - prediction: numpy array of shape (400, 400)
     """
-    fig, ax = plt.subplots(1, 2, figsize=(10, 10))
-    ax[0].imshow(map, cmap='gray', alpha=0.5)
-    ax[0].imshow(pred, cmap='jet', alpha=0.5)
-    ax[0].set_title('Overlay of Original and Prediction Grid Maps')
+    #print("Pred shape:", pred.shape)
+    #print("GT shape:", gt.shape)
+    #print("Map shape:", map.shape)
 
-    ax[1].imshow(map, cmap='gray', alpha=0.5)
-    ax[1].imshow(gt, cmap='jet', alpha=0.5)
-    ax[1].set_title('Overlay of Original and Ground Truth Grid Maps')
-    plt.show()
+    #print((pred[2].shape))
+
+    for i in range(len(FUTURE_TARGET_RILEVATION)):
+        fig, ax = plt.subplots(1, 2, figsize=(10, 10))
+        ax[0].imshow(map, cmap='gray', alpha=0.5)
+        ax[0].imshow(pred[i], cmap='jet', alpha=0.5)
+        ax[0].set_title(f'Prediction {i+1}')
+
+        ax[1].imshow(map, cmap='gray', alpha=0.5)
+        ax[1].imshow(gt[i], cmap='jet', alpha=0.5)
+        ax[1].set_title('Ground Truth Grid Maps')
+        plt.show()
     
-    plt.show()
 
 def model_preparation(model_name, model_type, activation_function):
 
@@ -64,7 +70,7 @@ def model_preparation(model_name, model_type, activation_function):
         device = torch.device("cpu")
         print("CUDA is not available. Using CPU.")
 
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
 
     # Remove 'module.' prefix from the state dict keys if it's there
     state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
@@ -75,8 +81,8 @@ def model_preparation(model_name, model_type, activation_function):
         new_key = key.replace('module.', '')  # Remove 'module.' prefix
         new_state_dict[new_key] = value
 
-    print("Saved model keys:", new_state_dict.keys())
-    print("Current model keys:", model.state_dict().keys())
+    #print("Saved model keys:", new_state_dict.keys())
+    #print("Current model keys:", model.state_dict().keys())
 
     # Now load the cleaned state dict into your model
     model.load_state_dict(new_state_dict)
@@ -89,9 +95,9 @@ def model_preparation(model_name, model_type, activation_function):
         model = nn.DataParallel(model)
 
     if isinstance(model, nn.DataParallel):
-        summary(model.module, input_size=(5, 400, 400))
+        summary(model.module, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     else:
-        summary(model, input_size=(5, 400, 400))
+        summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
     
     model.eval()
 
@@ -177,11 +183,16 @@ def show_predictions(model, device):
                 predictions = []
                 grid_maps = []
                 vertices = []
-                inputs, target = data
-                target = target[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
-                
-                # Predict the noise for this timestep
-                x_t = model(inputs)
+                inputs, targets = data
+                targets = [
+                    targets[:, i].unsqueeze(1).float().to(device)
+                    for i in range(len(FUTURE_TARGET_RILEVATION))
+                ]
+
+                latent = model.encoder(inputs)
+                x_t = [decoder(latent) for decoder in model.decoder]
+
+                x_t = torch.cat(x_t, dim=1)
 
                 # Apply threshold to convert outputs to 0 or 1
                 threshold = 0.4
@@ -191,10 +202,10 @@ def show_predictions(model, device):
                 x_t = sigmoid(x_t)
                 predictions.append(x_t)
                 predictions = torch.cat(predictions).cpu().numpy()
-                print("Predictions Shape:", predictions.shape)
+                #print("Predictions Shape:", predictions.shape)
                 
                 grid_maps = data[0].cpu().numpy()
-                vertices = data[1][:, SELECTED_FUTURE_INDEX].cpu().numpy()
+                vertices = data[1].cpu().numpy()
 
                 # Now covariate_data and label_data are numpy arrays containing all the elements
                 #print("Covariate data shape:", grid_maps.shape)
@@ -204,17 +215,16 @@ def show_predictions(model, device):
                 predictions = predictions.reshape(-1, 400, 400)
                 vertices = vertices.reshape(-1, 400, 400)
                 
-                for i in range(batch_size):
-                    visualize_prediction(predictions[i], vertices[i], grid_maps[i])
+                visualize_prediction(predictions, vertices, grid_maps[i])
 
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='MultiHeadAutoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
-    parser.add_argument('--model_name', type=str, default='model_20250416_202803_loss_0.0205_Autoencoder_big_big', help='Name of the model to load')
+    parser.add_argument('--model_name', type=str, default='model_20250415_174218_loss_0.0022_MultiHeadAutoencoder', help='Name of the model to load')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]

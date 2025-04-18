@@ -28,6 +28,8 @@ class DatasetNPY(torch.utils.data.Dataset):
         return len(self.X)
     
 def load_dataset_NPY(name, i):
+    gc.collect()
+    
     dataset = DatasetNPY(name, i)
     x, y = dataset[0]
     print(f"X shape dataset {name}: {x.shape}, Y shape dataset {name}: {y.shape}")

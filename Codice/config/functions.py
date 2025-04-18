@@ -980,6 +980,62 @@ class BigUNet_autoencoder(nn.Module):
         _, _, h, w = x.shape
         skip = torchvision.transforms.functional.center_crop(skip, [h, w])
         return skip
+    
+class BigUNet_big_autoencoder(nn.Module):
+    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[32, 64, 128, 256], activation_fn=nn.ReLU):
+        super(BigUNet_big_autoencoder, self).__init__()
+        self.encoder = nn.ModuleList()
+        self.decoder = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Encoder path
+        for feature in features:
+            self.encoder.append(DoubleConv(input_channels, feature, activation_fn))
+            input_channels = feature
+
+        # Bottleneck
+        self.bottleneck = DoubleConv(features[-1], features[-1] * 2, activation_fn)
+
+        # Decoder path
+        for feature in reversed(features):
+            self.decoder.append(
+                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
+            )
+            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
+
+        # Final output layer
+        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
+
+    def forward(self, x):
+        skip_connections = []
+
+        # Encoder forward pass
+        for down in self.encoder:
+            x = down(x)
+            skip_connections.append(x)
+            x = self.pool(x)
+
+        # Bottleneck
+        x = self.bottleneck(x)
+
+        # Decoder forward pass
+        skip_connections = skip_connections[::-1]  # Reverse skip connections
+        for i in range(0, len(self.decoder), 2):
+            x = self.decoder[i](x)  # Transposed convolution (upsampling)
+            skip_connection = skip_connections[i // 2]
+            if x.shape != skip_connection.shape:
+                x = self._crop(skip_connection, x)  # Crop skip connection to match the size of x
+            x = torch.cat((skip_connection, x), dim=1)  # Concatenate skip connection
+            x = self.decoder[i + 1](x)  # DoubleConv layer
+
+        return self.final_conv(x)  # Final output layer
+
+    def _crop(self, skip, x):
+        """Crop the skip connection to match the size of x."""
+        _, _, h, w = x.shape
+        skip = torchvision.transforms.functional.center_crop(skip, [h, w])
+        return skip
+
 
 import torch
 import torch.nn as nn
@@ -1105,7 +1161,7 @@ def calculate_dead_neuron(model, device):
         return 100.0 * dead_neurons / activations.shape[1]
     
     # Get the first batch of data
-    loader = load_dataset('val', 0, device, 16)
+    loader = load_dataset('train', 0, device, 16)
     first_batch = next(iter(loader))
 
     # Unpack the inputs and targets from the first batch
@@ -1134,3 +1190,148 @@ def calculate_dead_neuron(model, device):
     print("\nDECODER LAYERS\n")
     for i, d_activation in enumerate(decoder_activations):
         print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
+
+def calculate_dead_neuron_multi(model, device):
+    # Function to calculate dead neuron percentage
+    def dead_neuron_percentage(activations):
+        # activations: (batch_size, num_neurons, height, width)
+        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
+        # For each neuron, check if it was always zero across the batch
+        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
+        return 100.0 * dead_neurons / num_neurons
+
+    # Get the first batch of data
+    loader = load_dataset('train', 0, device, 16)
+    first_batch = next(iter(loader))
+
+    # Unpack the inputs and targets from the first batch
+    x, targets = first_batch
+
+    with torch.no_grad():
+        # Dynamically compute encoder activations
+        encoder_activations = []
+        activation = x
+        for layer in model.encoder:
+            activation = layer(activation)
+            encoder_activations.append(activation)
+
+        # Dynamically compute decoder activations for each head
+        decoder_activations = []
+        for decoder in model.decoder:  # Iterate over each decoder head
+            activation = encoder_activations[-1]  # Start with the last encoder activation
+            head_activations = []
+            for layer in decoder:
+                activation = layer(activation)
+                head_activations.append(activation)
+            decoder_activations.append(head_activations)
+
+    # Calculate and print dead neuron percentages for encoder layers
+    print("ENCODER LAYERS\n")
+    for i, e_activation in enumerate(encoder_activations):
+        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
+
+    # Calculate and print dead neuron percentages for each decoder head
+    print("\nDECODER LAYERS\n")
+    for head_idx, head_activations in enumerate(decoder_activations):
+        print(f"Decoder Head {head_idx + 1}:\n")
+        for i, d_activation in enumerate(head_activations):
+            print(f"  Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
+
+class Autoencoder_big_big(nn.Module):
+    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
+        super(Autoencoder_big_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        self.encoder = nn.Sequential(
+            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(512, 256, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+        )
+
+    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
+        x = self.encoder(x).contiguous()
+        x = self.decoder(x).contiguous()
+        return x
+
+class MultiHeadAutoencoder(nn.Module):
+    def __init__(self, activation_fn=nn.ReLU):
+        super(MultiHeadAutoencoder, self).__init__()
+
+        # Shared Encoder
+        self.encoder = nn.Sequential(
+            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+            nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.MaxPool2d(2, stride = 2),
+        )
+
+        # 4 Decoders (one per prediction head)
+        self.decoder = nn.ModuleList([
+            nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(512, 256, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
+            activation_fn(),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+        )
+            for _ in range(4)
+        ])
+
+    def forward(self, x):
+        latent = self.encoder(x)
+        outputs = [decoder(latent) for decoder in self.decoder]
+        return outputs

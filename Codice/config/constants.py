@@ -8,13 +8,13 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911_prove'
+DATA_HOME = HOME + r'/data_map03_0911_long'
 
 HOME_SAVING = HOME + r'/Savings'
 
 HOME_DIR = HOME + r'/Codice'
 
-NUMBER_OF_SENSORS = 6
+NUMBER_OF_SENSORS = 12
 
 LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
 LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'
@@ -74,7 +74,7 @@ NUM_MIN_POINTS_PEDESTRIAN = 1
 HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 
 # For generate_augmentation
-AUGMENTATION_FACTOR = 0.5
+AUGMENTATION_FACTOR = 0.2
 
 # For Generate_chuncks
 MINIMUM_NUMBER_OF_RILEVATIONS = 1
@@ -82,12 +82,12 @@ MINIMUM_NUMBER_OF_RILEVATIONS = 1
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
-NUMBER_OF_CHUNCKS = 3
+NUMBER_OF_CHUNCKS = 10
 NUMBER_OF_CHUNCKS_TEST = 2
 
 NUMBER_RILEVATIONS_INPUT = 5
 FUTURE_TARGET_RILEVATION = [5,10,15,20] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
-SELECTED_FUTURE_INDEX = 0
+SELECTED_FUTURE_INDEX = 3
 
 MINIMUM_BETHA = 1e-1
 MAXIMUM_BETHA = 0.5

@@ -104,9 +104,31 @@ class WeightedBCELoss(nn.Module):
         # Return the mean of the loss
         return bce_loss.mean()
 
-def define_models(model_type, activation_function):
-    # Model creation
+def define_models(model_type, activation_function, model_name):
+
     model = model_type(activation_fn=activation_function)
+    
+    # Model creation
+    model_path = os.path.join(MODEL_DIR, model_name + ".pth")
+    checkpoint = torch.load(model_path, weights_only=True)
+
+    # Remove 'module.' prefix from the state dict keys if it's there
+    state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
+
+    # Create a new state dict without the "module." prefix
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        new_key = key.replace('module.', '')  # Remove 'module.' prefix
+        new_state_dict[new_key] = value
+
+    # Now load the cleaned state dict into your model
+    model.load_state_dict(new_state_dict)
+    
+    for param in model.encoder.parameters():
+        param.requires_grad = False
+
+    for param in model.decoder.parameters():
+        param.requires_grad = True
 
     # Check if CUDA is available
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -135,25 +157,38 @@ def define_models(model_type, activation_function):
     else:
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
 
-    model.apply(initialize_weights)
+    model.decoder.apply(initialize_weights)
 
     print("----------------------------------------------------------------------")
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
     
     return model, device
 
 def train(model, device, activation_function):
     
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
-    early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
-    
-    pos_weight = torch.tensor([10], device=device)
+    optimizers = [
+        torch.optim.Adam(decoder.parameters(), lr=1e-4)
+        for decoder in model.decoder
+    ]
+
+    # Create one scheduler per head
+    schedulers = [
+        torch.optim.lr_scheduler.ReduceLROnPlateau(opt, 'min', patience=3)
+        for opt in optimizers
+    ]
+
+    # Create one EarlyStopping per head
+    early_stoppers = [
+        EarlyStopping(patience=5, min_delta=0.0001)
+        for _ in model.decoder
+    ]
+        
+    pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
    
     # Parameters for training
@@ -165,7 +200,7 @@ def train(model, device, activation_function):
     batch_size = BATCH_SIZE
 
     os.makedirs(MODEL_DIR, exist_ok=True)
-    best_val_loss = float('inf')  # Initialize best validation loss
+    best_val_losses = [float('inf')] * len(model.decoder)
     best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
 
     for j in range(num_total_epochs):
@@ -177,7 +212,7 @@ def train(model, device, activation_function):
         print("\nOrder of the chuncks for training:", train_order)
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
 
-        for i in range(number_of_chuncks):  # type: ignore
+        for i in range(1):  # type: ignore
             if early_stopping_triggered:
                 break
 
@@ -189,76 +224,96 @@ def train(model, device, activation_function):
             for epoch in range(num_epochs_for_each_chunck):
                 start = datetime.now()
                 model.train()
-                train_loss = 0
+                head_train_losses = [0.0 for _ in model.decoder]
                 for data in train_loader:
                     
                     inputs, targets = data
-                    targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
-                    optimizer.zero_grad()
+                    targets = [targets[:, i].unsqueeze(1).float().to(device) for i in range(len(FUTURE_TARGET_RILEVATION))]  # targets list: [target0, target1, target2, target3]
+                    # targets list: [target0, target1, target2, target3]
 
-                    # Predict the noise for this timestep
-                    pred = model(inputs)
+                    latent = model.encoder(inputs)  # Forward pass through frozen encoder
 
-                    # Calculate loss with true noise
-                    loss = criterion(pred, targets)
-                    
-                    loss.backward()
-                    optimizer.step()
-                    train_loss += loss.item()
+                    # Forward pass through all heads
+                    outputs = [decoder(latent) for decoder in model.decoder]
 
-                train_loss /= len(train_loader)
+                    # Update each head separately
+                    for head_idx in range(len(FUTURE_TARGET_RILEVATION)):
+                        optimizers[head_idx].zero_grad()
+
+                        loss = criterion(outputs[head_idx], targets[head_idx])
+                        loss.backward()
+
+                        optimizers[head_idx].step()
+                        head_train_losses[head_idx] += loss.item()
+
+                # Average the loss per head
+                head_train_losses = [loss / len(train_loader) / number_of_chuncks for loss in head_train_losses]
 
                 if epoch + 1 == num_epochs_for_each_chunck:
-                    val_losses = []
+                    head_val_losses = [0.0 for _ in model.decoder]
+
                     for k in range(number_of_chuncks_val):
                         val_loader = load_dataset('val', k, device, batch_size)
                         model.eval()
-                        val_loss = 0
+
                         with torch.no_grad():
                             for data in val_loader:
                                 inputs, targets = data
-                                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
+                                targets = [
+                                    targets[:, i].unsqueeze(1).float().to(device)
+                                    for i in range(len(FUTURE_TARGET_RILEVATION))
+                                ]
 
-                                # Predict the noise for this timestep
-                                pred = model(inputs)
+                                latent = model.encoder(inputs)
+                                outputs = [decoder(latent) for decoder in model.decoder]
 
-                                # Calculate loss with true noise
-                                loss = criterion(pred, targets)
-            
-                                val_loss += loss.item()
-                        val_loss /= len(val_loader)
-                        val_losses.append(val_loss)
+                                for z in range(len(FUTURE_TARGET_RILEVATION)):
+                                    loss = criterion(outputs[z], targets[z])
+                                    head_val_losses[z] += loss.item()
 
-                    total_val_loss = sum(val_losses) / len(val_losses)
-                    print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
+                    # Average the loss per head
+                    head_val_losses = [loss / len(val_loader) / number_of_chuncks_val for loss in head_val_losses]
 
-                    if j >= 1:
-                        if total_val_loss < best_val_loss:
-                            best_val_loss = total_val_loss
+                    # Print and handle early stopping / schedulers
+                    for head_idx, (val_loss, train_loss) in enumerate(zip(head_val_losses, head_train_losses)):
+                        print(f"Head {head_idx + 1}     Train Loss: {train_loss:.4f}   Val Loss: {val_loss:.4f}")
+
+                        if j >= 1 and val_loss < best_val_losses[head_idx]:
+                            best_val_losses[head_idx] = val_loss
+                            best_model_path = os.path.join(MODEL_DIR, f'best_model_head_{head_idx + 1}.pth')
                             torch.save(model.state_dict(), best_model_path)
-                            print(f"New best model saved with Val Loss: {best_val_loss:.4f}")
+                            print(f"New best model saved for Head {head_idx + 1} with Val Loss: {val_loss:.4f}")
+                        
+                        schedulers[head_idx].step(val_loss)
+                        early_stoppers[head_idx](val_loss)
+                    print("Epoch time:", datetime.now() - start)
 
-                        scheduler.step(val_loss)
-                        early_stopping(val_loss)
-                        if early_stopping.early_stop:
-                            print("Early stopping triggered")
-                            early_stopping_triggered = True
-                            break
-                else:
-                    print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
+                    if j >= 1 and all(val_loss < best for val_loss, best in zip(head_val_losses, best_val_losses)):
+                        best_val_losses = head_val_losses.copy()
+                        torch.save(model.state_dict(), best_model_path)
+                        print(f"New best model saved with Val Losses: {best_val_losses}")
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
+                    # Global stopping if all heads agree
+                    if all(stopper.early_stop for stopper in early_stoppers):
+                        print("Early stopping triggered for all heads.")
+                        early_stopping_triggered = True
+    
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
     
     del model
 
-def test(model_type, device):
+def test(model_type, device, model_name):
 
     batch_size = BATCH_SIZE
 
+    print("\nLoading the best encoder and decoders...\n")
+
     model = model_type(activation_fn=activation_function)
 
-    model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+    '''
+
+    model_path = os.path.join(MODEL_DIR, 'best_model_head_1.pth')
 
     checkpoint = torch.load(model_path, map_location=device)
 
@@ -273,6 +328,39 @@ def test(model_type, device):
 
     # Now load the cleaned state dict into your model
     model.load_state_dict(new_state_dict)
+
+    '''
+    # Load encoder
+    best_encoder_path = os.path.join(MODEL_DIR, model_name + '.pth')
+    encoder_state_dict = torch.load(best_encoder_path, map_location=device, weights_only=True)
+
+    # Remove "encoder." prefix from the keys
+    encoder_state_dict = {k.replace("encoder.", ""): v for k, v in encoder_state_dict.items() if k.startswith("encoder.")}
+    model.encoder.load_state_dict(encoder_state_dict, strict=True)
+    print(f"Encoder loaded from {best_encoder_path}")
+
+    # Load each decoder head
+    for idx in range(4):
+        best_head_path = os.path.join(MODEL_DIR, f'best_model_head_{idx+1}.pth')
+        full_state_dict = torch.load(best_head_path, map_location=device, weights_only=True)
+
+        # Extract only the decoder parameters for the correct head
+        head_state_dict = {}
+        for name, param in full_state_dict.items():
+            if name.startswith(f"decoder.{idx}"):
+                #print("name", name)
+                clean_name = name.replace(f"decoder.{idx}.", "")
+                #print(f"Clean name: {clean_name}")
+                head_state_dict[clean_name] = param
+
+        model.decoder[idx].load_state_dict(head_state_dict, strict=True)
+        print(f"Head {idx+1} loaded from {best_head_path}")
+    
+    #'''
+
+    model.to(device)
+    model.eval()  # Set the model to evaluation mode
+    print("\nAll components loaded successfully!\n")
 
     model = model.to(device)
 
@@ -297,21 +385,29 @@ def test(model_type, device):
         gc.collect()
 
         model.eval()
-        test_loss = 0
+        head_test_losses = [0.0 for _ in model.decoder]
+
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
-                
-                # Predict the noise for this timestep
-                pred = model(inputs)
+                targets = [
+                    targets[:, i].unsqueeze(1).float().to(device)
+                    for i in range(len(FUTURE_TARGET_RILEVATION))
+                ]
 
-                # Calculate loss with true noise
-                loss = criterion(pred, targets)
+                latent = model.encoder(inputs)
+                outputs = [decoder(latent) for decoder in model.decoder]
 
-                test_loss += loss.item()
-        test_loss /= len(test_loader)
-        print(f'Test Loss: {test_loss:.4f}')
+                for z in range(len(FUTURE_TARGET_RILEVATION)):
+                    loss = criterion(outputs[z], targets[z])
+                    head_test_losses[z] += loss.item()
+
+    # Average the loss per head
+    head_test_losses = [loss / len(test_loader) / NUMBER_OF_CHUNCKS_TEST for loss in head_test_losses]
+
+    # Print and handle early stopping / schedulers
+    for head_idx, test_loss in enumerate(head_test_losses):
+        print(f"Head {head_idx + 1}     Test Loss: {test_loss:.4f}")
         test_losses.append(test_loss)
 
     total_loss = sum(test_losses) / len(test_losses)
@@ -322,12 +418,14 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='MultiHeadAutoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
+    parser.add_argument('--encoder', type=str, default='model_ENCODER_20250415_124611_loss_0.0040_MultiHeadAutoencoder', help='Pre-trained encoder to use')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]
     activation_function = getattr(nn, args.activation_function)
+    model_name = args.encoder
 
     # Set environment variables for distributed training
     os.environ['MASTER_ADDR'] = 'localhost'  # This is the address of the master node
@@ -344,13 +442,13 @@ if __name__ == "__main__":
     gc.collect()
     random.seed(SEED)
 
-    model, device = define_models(model_type, activation_function)
-    
+    model, device = define_models(model_type, activation_function, model_name)
+
     try:
     
         train(model, device, activation_function)
 
-        total_loss, model_best = test(model_type, device)
+        total_loss, model_best = test(model_type, device, model_name)
 
         # Define the directory where you want to save the model
         os.makedirs(MODEL_DIR, exist_ok=True)

@@ -39,6 +39,12 @@ from ffcv.reader import Reader
 import torch.nn.functional as F
 import torch.distributed as dist
 
+def loss_fn(outputs, targets, criterion):
+    total_loss = 0
+    for i in range(4):
+        total_loss += criterion(outputs[i], targets[i])
+    return total_loss / 4
+
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
         super(DiceLoss, self).__init__()
@@ -136,15 +142,15 @@ def define_models(model_type, activation_function):
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
     if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
+        calculate_dead_neuron_multi(model, device)
 
     model.apply(initialize_weights)
 
     print("----------------------------------------------------------------------")
 
     if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
-    
+        calculate_dead_neuron_multi(model, device)
+
     return model, device
 
 def train(model, device, activation_function):
@@ -153,7 +159,7 @@ def train(model, device, activation_function):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
     early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
     
-    pos_weight = torch.tensor([10], device=device)
+    pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
    
     # Parameters for training
@@ -166,7 +172,7 @@ def train(model, device, activation_function):
 
     os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
-    best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+    best_model_path = os.path.join(MODEL_DIR, 'best_model_encoder.pth')
 
     for j in range(num_total_epochs):
         if early_stopping_triggered:
@@ -193,15 +199,22 @@ def train(model, device, activation_function):
                 for data in train_loader:
                     
                     inputs, targets = data
-                    targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
+                    targets = [
+                        targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                        targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                        targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                        targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                    ]
                     optimizer.zero_grad()
 
                     # Predict the noise for this timestep
                     pred = model(inputs)
 
-                    # Calculate loss with true noise
-                    loss = criterion(pred, targets)
-                    
+                    loss = 0
+                    for i in range(4):
+                        loss += criterion(pred[i], targets[i])
+                    loss /= 4  # Average over all heads
+                                    
                     loss.backward()
                     optimizer.step()
                     train_loss += loss.item()
@@ -217,13 +230,21 @@ def train(model, device, activation_function):
                         with torch.no_grad():
                             for data in val_loader:
                                 inputs, targets = data
-                                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
+                                targets = [
+                                    targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                                    targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                                    targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                                    targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                                ]
 
                                 # Predict the noise for this timestep
                                 pred = model(inputs)
 
                                 # Calculate loss with true noise
-                                loss = criterion(pred, targets)
+                                loss = 0
+                                for i in range(4):
+                                    loss += criterion(pred[i], targets[i])
+                                loss /= 4  # Average over all heads
             
                                 val_loss += loss.item()
                         val_loss /= len(val_loader)
@@ -247,8 +268,11 @@ def train(model, device, activation_function):
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron(model, device)
+    torch.cuda.empty_cache()
+    gc.collect()
+
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
     
     del model
 
@@ -258,7 +282,7 @@ def test(model_type, device):
 
     model = model_type(activation_fn=activation_function)
 
-    model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+    model_path = os.path.join(MODEL_DIR, 'best_model_encoder.pth')
 
     checkpoint = torch.load(model_path, map_location=device)
 
@@ -301,13 +325,21 @@ def test(model_type, device):
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets[:, SELECTED_FUTURE_INDEX].unsqueeze(1).float()
+                targets = [
+                    targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                    targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                    targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                    targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                ]
                 
                 # Predict the noise for this timestep
                 pred = model(inputs)
 
                 # Calculate loss with true noise
-                loss = criterion(pred, targets)
+                loss = 0
+                for i in range(4):
+                    loss += criterion(pred[i], targets[i])
+                loss /= 4  # Average over all heads
 
                 test_loss += loss.item()
         test_loss /= len(test_loader)
@@ -322,7 +354,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='MultiHeadAutoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 
@@ -345,7 +377,7 @@ if __name__ == "__main__":
     random.seed(SEED)
 
     model, device = define_models(model_type, activation_function)
-    
+
     try:
     
         train(model, device, activation_function)
@@ -355,7 +387,7 @@ if __name__ == "__main__":
         # Define the directory where you want to save the model
         os.makedirs(MODEL_DIR, exist_ok=True)
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_name = f'model_{time}_loss_{total_loss:.4f}_{model_type.__name__}.pth'
+        model_name = f'model_ENCODER_{time}_loss_{total_loss:.4f}_{model_type.__name__}.pth'
         model_save_path = os.path.join(MODEL_DIR, model_name)
         torch.save(model_best.state_dict(), model_save_path)
         print(f'Model saved : {model_name}')
@@ -363,4 +395,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Training interrupted by user.")
 
-        torch.distributed.destroy_process_group()
+    torch.distributed.destroy_process_group()
