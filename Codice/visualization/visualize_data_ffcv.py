@@ -11,7 +11,7 @@ from ffcv.fields.decoders import NDArrayDecoder
 import torch
 import torch.distributed as dist
 
-def visualize_data(loader):
+def visualize_pred(loader):
     for batch in loader:
         images, labels = batch
         images = images.cpu().numpy()
@@ -33,6 +33,29 @@ def visualize_data(loader):
             ax[1,1].imshow(images[i][4], cmap='gray', alpha=0.5)
             plt.show()
 
+def visualize_data(loader):
+    for batch in loader:
+        images, labels = batch
+        images = images.cpu().numpy()
+        
+        print(f"Images shape: {images.shape}")
+
+        for i in range(min(20, len(images))):  # Visualize first 5 images
+            
+            fig, ax = plt.subplots(2,5,figsize=(10, 10))
+            ax[0,0].imshow(images[i][0], cmap='gray', alpha=0.5)
+            ax[0,1].imshow(images[i][1], cmap='gray', alpha=0.5)
+            ax[0,2].imshow(images[i][2], cmap='gray', alpha=0.5)
+            ax[0,3].imshow(images[i][3], cmap='gray', alpha=0.5)
+            ax[0,4].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[1,0].imshow(images[i][5], cmap='gray', alpha=0.5)
+            ax[1,1].imshow(images[i][6], cmap='gray', alpha=0.5)
+            ax[1,2].imshow(images[i][7], cmap='gray', alpha=0.5)
+            ax[1,3].imshow(images[i][8], cmap='gray', alpha=0.5)
+            ax[1,4].imshow(images[i][9], cmap='gray', alpha=0.5)
+            plt.show()
+
+
 
 if __name__ == "__main__":
 
@@ -49,5 +72,7 @@ if __name__ == "__main__":
     dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    loader = load_dataset('train', 1, device, 4)
+    loader = load_dataset('train', 10, device, 1)
+    #visualize_pred(loader)
+
     visualize_data(loader)

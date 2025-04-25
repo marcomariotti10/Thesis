@@ -42,7 +42,7 @@ def load_dataset_NPY(name, i):
     writer = DatasetWriter(complete_path, {
             'covariate': NDArrayField(shape=shape_input, dtype=np.dtype('float32')),  # Adjust shape
             'label': NDArrayField(shape=shape_target, dtype=np.dtype('int')),
-        }, num_workers=16)
+        }, num_workers=16, page_size=1024*1024*16)
 
     writer.from_indexed_dataset(dataset)
 

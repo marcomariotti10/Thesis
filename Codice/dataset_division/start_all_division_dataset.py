@@ -10,8 +10,8 @@ if __name__ == "__main__":
         #"fit_entire_dataset.py",
         #"separation_train_val_test.py",
         "generate_chuncks.py",
-        "generate_augmentation.py",
-        "combine_augmentation.py",
+        #"generate_augmentation.py",
+        #"combine_augmentation.py",
         "generate_ffcv.py"
     ]
 

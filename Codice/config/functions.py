@@ -1335,3 +1335,166 @@ class MultiHeadAutoencoder(nn.Module):
         latent = self.encoder(x)
         outputs = [decoder(latent) for decoder in self.decoder]
         return outputs
+
+class ChannelAttention(nn.Module):
+    def __init__(self, in_planes, reduction=16):
+        super(ChannelAttention, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.fc = nn.Sequential(
+            nn.Conv2d(in_planes, in_planes // reduction, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_planes // reduction, in_planes, 1, bias=False)
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = self.fc(self.avg_pool(x))
+        max_out = self.fc(self.max_pool(x))
+        out = avg_out + max_out
+        return self.sigmoid(out) * x
+
+class SpatialAttention(nn.Module):
+    def __init__(self, kernel_size=7):
+        super(SpatialAttention, self).__init__()
+        assert kernel_size in (3, 7), 'Kernel size must be 3 or 7'
+        padding = kernel_size // 2
+
+        self.conv = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        x_cat = torch.cat([avg_out, max_out], dim=1)
+        attention = self.sigmoid(self.conv(x_cat))
+        return attention * x
+
+class CBAM(nn.Module):
+    def __init__(self, in_planes, reduction=16, kernel_size=7):
+        super(CBAM, self).__init__()
+        self.channel_attention = ChannelAttention(in_planes, reduction)
+        self.spatial_attention = SpatialAttention(kernel_size)
+
+    def forward(self, x):
+        x = self.channel_attention(x)
+        x = self.spatial_attention(x)
+        return x
+
+# ---------------------------------------------
+# Modified Autoencoder with CBAM Attention
+# ---------------------------------------------
+class Autoencoder_big_big_CBAM(nn.Module):
+    def __init__(self, activation_fn=nn.ReLU):
+        super(Autoencoder_big_big_CBAM, self).__init__()
+        # Encoder definitions
+        self.enc_conv1 = nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1)
+        self.enc_act1 = activation_fn()
+        self.cbam1 = CBAM(16)
+
+        self.enc_conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
+        self.enc_act2 = activation_fn()
+        self.cbam2 = CBAM(32)
+
+        self.enc_conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.enc_act3 = activation_fn()
+        self.pool1    = nn.MaxPool2d(2, stride=2)
+        self.cbam3 = CBAM(64)
+
+        self.enc_conv4 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.enc_act4 = activation_fn()
+        self.pool2    = nn.MaxPool2d(2, stride=2)
+        self.cbam4 = CBAM(128)
+
+        self.enc_conv5 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.enc_act5 = activation_fn()
+        self.pool3    = nn.MaxPool2d(2, stride=2)
+        self.cbam5 = CBAM(256)
+
+        self.enc_conv6 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
+        self.enc_act6 = activation_fn()
+        self.pool4    = nn.MaxPool2d(2, stride=2)
+        self.cbam6 = CBAM(512)
+
+        # Decoder definitions
+        self.dec_conv1 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.dec_act1 = activation_fn()
+        self.cbam7 = CBAM(512)
+
+        self.dec_conv2 = nn.Conv2d(512, 256, kernel_size=3, padding=1)
+        self.dec_act2 = activation_fn()
+        self.upsample1 = nn.Upsample(scale_factor=2)
+        self.cbam8 = CBAM(256)
+
+        self.dec_conv3 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.dec_act3 = activation_fn()
+        self.upsample2 = nn.Upsample(scale_factor=2)
+        self.cbam9 = CBAM(128)
+
+        self.dec_conv4 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
+        self.dec_act4 = activation_fn()
+        self.upsample3 = nn.Upsample(scale_factor=2)
+        self.cbam10 = CBAM(64)
+
+        self.dec_conv5 = nn.Conv2d(64, 32, kernel_size=3, padding=1)
+        self.dec_act5 = activation_fn()
+        self.upsample4 = nn.Upsample(scale_factor=2)
+        self.cbam11 = CBAM(32)
+
+        self.dec_conv6 = nn.Conv2d(32, 16, kernel_size=3, padding=1)
+        self.dec_act6 = activation_fn()
+        self.cbam12 = CBAM(16)
+
+        self.dec_conv7 = nn.Conv2d(16, 1, kernel_size=3, padding=1)  # final output
+
+    def forward(self, x):
+        # Encoder forward
+        x = self.enc_act1(self.enc_conv1(x))
+        x = self.cbam1(x)
+
+        x = self.enc_act2(self.enc_conv2(x))
+        x = self.cbam2(x)
+
+        x = self.enc_act3(self.enc_conv3(x))
+        x = self.cbam3(x)
+        x = self.pool1(x)
+
+        x = self.enc_act4(self.enc_conv4(x))
+        x = self.cbam4(x)
+        x = self.pool2(x)
+
+        x = self.enc_act5(self.enc_conv5(x))
+        x = self.cbam5(x)
+        x = self.pool3(x)
+
+        x = self.enc_act6(self.enc_conv6(x))
+        x = self.cbam6(x)
+        x = self.pool4(x)
+
+        # Decoder forward
+        x = self.dec_act1(self.dec_conv1(x))
+        x = self.cbam7(x)
+
+        x = self.dec_act2(self.dec_conv2(x))
+        x = self.cbam8(x)
+        x = self.upsample1(x)
+
+        x = self.dec_act3(self.dec_conv3(x))
+        x = self.cbam9(x)
+        x = self.upsample2(x)
+
+        x = self.dec_act4(self.dec_conv4(x))
+        x = self.cbam10(x)
+        x = self.upsample3(x)
+
+        x = self.dec_act5(self.dec_conv5(x))
+        x = self.cbam11(x)
+        x = self.upsample4(x)
+
+        x = self.dec_act6(self.dec_conv6(x))
+        x = self.cbam12(x)
+
+        # final output layer
+        x = self.dec_conv7(x)
+        return x

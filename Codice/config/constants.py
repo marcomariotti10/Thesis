@@ -82,10 +82,10 @@ MINIMUM_NUMBER_OF_RILEVATIONS = 1
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
-NUMBER_OF_CHUNCKS = 10
+NUMBER_OF_CHUNCKS = 15
 NUMBER_OF_CHUNCKS_TEST = 2
 
-NUMBER_RILEVATIONS_INPUT = 5
+NUMBER_RILEVATIONS_INPUT = 10
 FUTURE_TARGET_RILEVATION = [5,10,15,20] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
 SELECTED_FUTURE_INDEX = 3
 

@@ -212,9 +212,9 @@ def show_predictions(model, device):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big_CBAM', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
-    parser.add_argument('--model_name', type=str, default='model_20250416_202803_loss_0.0205_Autoencoder_big_big', help='Name of the model to load')
+    parser.add_argument('--model_name', type=str, default='model_20250419_180237_loss_0.0432_Autoencoder_big_big_CBAM', help='Name of the model to load')
     args = parser.parse_args()
 
     model_type = globals()[args.model_type]
