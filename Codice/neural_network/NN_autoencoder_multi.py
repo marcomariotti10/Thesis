@@ -212,7 +212,7 @@ def train(model, device, activation_function):
         print("\nOrder of the chuncks for training:", train_order)
         print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
 
-        for i in range(1):  # type: ignore
+        for i in range(number_of_chuncks):  # type: ignore
             if early_stopping_triggered:
                 break
 
@@ -229,7 +229,6 @@ def train(model, device, activation_function):
                     
                     inputs, targets = data
                     targets = [targets[:, i].unsqueeze(1).float().to(device) for i in range(len(FUTURE_TARGET_RILEVATION))]  # targets list: [target0, target1, target2, target3]
-                    # targets list: [target0, target1, target2, target3]
 
                     latent = model.encoder(inputs)  # Forward pass through frozen encoder
 
@@ -247,7 +246,7 @@ def train(model, device, activation_function):
                         head_train_losses[head_idx] += loss.item()
 
                 # Average the loss per head
-                head_train_losses = [loss / len(train_loader) / number_of_chuncks for loss in head_train_losses]
+                head_train_losses = [loss / len(train_loader) for loss in head_train_losses]
 
                 if epoch + 1 == num_epochs_for_each_chunck:
                     head_val_losses = [0.0 for _ in model.decoder]

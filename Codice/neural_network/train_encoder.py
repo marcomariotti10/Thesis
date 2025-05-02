@@ -141,15 +141,15 @@ def define_models(model_type, activation_function):
     else:
         summary(model, input_size=(NUMBER_RILEVATIONS_INPUT, 400, 400))
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron_multi(model, device)
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
 
     model.apply(initialize_weights)
 
     print("----------------------------------------------------------------------")
 
-    if "UNet" not in model_type.__name__:
-        calculate_dead_neuron_multi(model, device)
+    #if "UNet" not in model_type.__name__:
+        #calculate_dead_neuron_multi(model, device)
 
     return model, device
 
@@ -207,12 +207,13 @@ def train(model, device, activation_function):
                     ]
                     optimizer.zero_grad()
 
-                    # Predict the noise for this timestep
                     pred = model(inputs)
 
+                    #print("Predictions shape:", len(pred), pred[0].shape)
+
                     loss = 0
-                    for i in range(4):
-                        loss += criterion(pred[i], targets[i])
+                    for z in range(4):
+                        loss += criterion(pred[z], targets[z])
                     loss /= 4  # Average over all heads
                                     
                     loss.backward()
@@ -237,13 +238,12 @@ def train(model, device, activation_function):
                                     targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
                                 ]
 
-                                # Predict the noise for this timestep
                                 pred = model(inputs)
 
                                 # Calculate loss with true noise
                                 loss = 0
-                                for i in range(4):
-                                    loss += criterion(pred[i], targets[i])
+                                for z in range(4):
+                                    loss += criterion(pred[z], targets[z])
                                 loss /= 4  # Average over all heads
             
                                 val_loss += loss.item()
@@ -253,7 +253,7 @@ def train(model, device, activation_function):
                     total_val_loss = sum(val_losses) / len(val_losses)
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
 
-                    if j >= 1:
+                    if j >= 0:
                         if total_val_loss < best_val_loss:
                             best_val_loss = total_val_loss
                             torch.save(model.state_dict(), best_model_path)
@@ -284,7 +284,7 @@ def test(model_type, device):
 
     model_path = os.path.join(MODEL_DIR, 'best_model_encoder.pth')
 
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
 
     # Remove 'module.' prefix from the state dict keys if it's there
     state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
@@ -332,13 +332,12 @@ def test(model_type, device):
                     targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
                 ]
                 
-                # Predict the noise for this timestep
                 pred = model(inputs)
 
                 # Calculate loss with true noise
                 loss = 0
-                for i in range(4):
-                    loss += criterion(pred[i], targets[i])
+                for z in range(4):
+                    loss += criterion(pred[z], targets[z])
                 loss /= 4  # Average over all heads
 
                 test_loss += loss.item()
@@ -354,7 +353,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='MultiHeadAutoencoder', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='MultiHeadCBAMAutoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 

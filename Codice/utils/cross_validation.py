@@ -30,14 +30,14 @@ if __name__ == "__main__":
     gc.collect()
     random.seed(SEED)
     
-    batch_sizes = [4, 8, 16, 32, 64, 128]
-    learning_rates = [0.1, 0.001, 0.005]
+    batch_sizes = [4, 8, 16]
+    learning_rates = [0.001, 0.005]
     test_results = {}
     
-    for batch_size in batch_sizes:
-        for lr in learning_rates:
+    for lr in learning_rates:
+        for batch_size in batch_sizes:
             print(f"Running training with batch_size={batch_size} and learning_rate={lr}")
-            model = Autoencoder_classic()
+            model = MultiHeadAutoencoder()
             model.apply(initialize_weights)
             criterion = nn.BCEWithLogitsLoss()
             optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -45,26 +45,26 @@ if __name__ == "__main__":
             early_stopping = EarlyStopping(patience=10, min_delta=0.0001)
             
             # Check if CUDA is available
-            print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
-            print(f"CUDA version: {torch.version.cuda}")
+            #print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
+            #print(f"CUDA version: {torch.version.cuda}")
 
             # Check for multiple GPUs
             if torch.cuda.device_count() > 1:
-                print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
+                #print(f"Multiple GPUs detected: {torch.cuda.device_count()}")
                 model = nn.DataParallel(model)
 
             if torch.cuda.is_available():
                 device = torch.device("cuda")
                 model = model.to(device)
-                print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+                #print(f"Using GPU: {torch.cuda.get_device_name(0)}")
             else:
                 device = torch.device("cpu")
-                print("CUDA is not available. Using CPU.")
+                #print("CUDA is not available. Using CPU.")
 
             # Storing ID of current CUDA device
             cuda_id = torch.cuda.current_device()
-            print(f"ID of current CUDA device:{torch.cuda.current_device()}")
-            print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
+            #print(f"ID of current CUDA device:{torch.cuda.current_device()}")
+            #print(f"Name of current CUDA device:{torch.cuda.get_device_name(cuda_id)}")
             
             # Parameters for training
             early_stopping_triggered = False
@@ -98,16 +98,22 @@ if __name__ == "__main__":
                         for data in train_loader:
                             
                             inputs, targets = data
-                            targets = targets.float()
-
+                            targets = [
+                                targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                                targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                                targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                                targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                            ]
                             optimizer.zero_grad()
 
                             # Predict the noise for this timestep
                             pred = model(inputs)
 
-                            # Calculate loss with true noise
-                            loss = criterion(pred, targets)
-                            
+                            loss = 0
+                            for i in range(4):
+                                loss += criterion(pred[i], targets[i])
+                            loss /= 4  # Average over all heads
+                                            
                             loss.backward()
                             optimizer.step()
                             train_loss += loss.item()
@@ -123,13 +129,21 @@ if __name__ == "__main__":
                                 with torch.no_grad():
                                     for data in val_loader:
                                         inputs, targets = data
-                                        targets = targets.float()
+                                        targets = [
+                                            targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                                            targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                                            targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                                            targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                                        ]
 
                                         # Predict the noise for this timestep
                                         pred = model(inputs)
 
                                         # Calculate loss with true noise
-                                        loss = criterion(pred, targets)
+                                        loss = 0
+                                        for i in range(4):
+                                            loss += criterion(pred[i], targets[i])
+                                        loss /= 4  # Average over all heads
                     
                                         val_loss += loss.item()
                                 val_loss /= len(val_loader)
@@ -138,8 +152,7 @@ if __name__ == "__main__":
                             total_val_loss = sum(val_losses) / len(val_losses)
                             #print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
 
-                            if j >= 1:
-                                
+                            if j >= 0:
                                 scheduler.step(val_loss)
                                 early_stopping(val_loss)
                                 if early_stopping.early_stop:
@@ -149,12 +162,14 @@ if __name__ == "__main__":
                         else:
                             #print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
                             pass
-
-            print("------------------STARTING TESTING-------------------")
+            
+            print("\nFinished at epoch:", j+1)
+            print("\n------------------STARTING TESTING-------------------")
+            
             test_losses = []
             for i in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
                 print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
-                test_loader = load_dataset('test', i, device, batch_size)
+                test_loader = load_dataset('test', i, device, 8)
                 print("\nLenght test dataset: ", len(test_loader))
                 gc.collect()
 
@@ -163,13 +178,21 @@ if __name__ == "__main__":
                 with torch.no_grad():
                     for data in test_loader:
                         inputs, targets = data
-                        targets = targets.float()
+                        targets = [
+                            targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                            targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                            targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                            targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                        ]
                         
                         # Predict the noise for this timestep
                         pred = model(inputs)
 
                         # Calculate loss with true noise
-                        loss = criterion(pred, targets)
+                        loss = 0
+                        for i in range(4):
+                            loss += criterion(pred[i], targets[i])
+                        loss /= 4  # Average over all heads
 
                         test_loss += loss.item()
                 test_loss /= len(test_loader)
@@ -177,6 +200,7 @@ if __name__ == "__main__":
                 test_losses.append(test_loss)
 
             total_loss = sum(test_losses) / len(test_losses)
+
             print(f"\nTotal loss for batch_size={batch_size}, learning_rate={lr}:", total_loss)
             test_results[(batch_size, lr)] = total_loss
             print("-------------------------------------------------")

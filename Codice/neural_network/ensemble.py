@@ -17,39 +17,26 @@ from ffcv.transforms import ToTensor, ToDevice
 from torch.utils.data import DataLoader, TensorDataset
 
 class EnsembleModel(nn.Module):
-    def __init__(self, lenght):
-        super().__init__()
-        self.weights = nn.Parameter(torch.ones(lenght))  # Start with equal weights
-        self.lenght = lenght
-
-    def forward(self, outputs):  # outputs: (B, 3, H, W)
-        norm_weights = F.softmax(self.weights, dim=0)  # shape: (3,)
-        # Apply weights to each channel, then sum along channel dimension
-        weighted_output = (outputs * norm_weights.view(1, self.lenght, 1, 1)).sum(dim=1)  # shape: (B, H, W)
-        return weighted_output.unsqueeze(1)  # Add channel dimension → (B, 1, H, W)
-
-def visualize_prediction(pred, gt, map, preds):
-    num_preds = len(preds)
-    fig, ax = plt.subplots(2, num_preds, figsize=(12, 16))
-
-    ax[0, 0].imshow(map, cmap='gray', alpha=0.5)
-    ax[0, 0].imshow(pred[0], cmap='jet', alpha=0.5)
-    ax[0, 0].set_title('Overlay of Original and Average prediction Grid Maps')
-
-    ax[0, 1].imshow(map, cmap='gray', alpha=0.5)
-    ax[0, 1].imshow(pred[1], cmap='jet', alpha=0.5)
-    ax[0, 1].set_title('Overlay of Original and Ensemble prediction Grid Maps')
-
-    ax[0, 2].imshow(map, cmap='gray', alpha=0.5)
-    ax[0, 2].imshow(gt, cmap='jet', alpha=0.5)
-    ax[0, 2].set_title('Overlay of Original and Ground Truth Grid Maps')
-
-    for i in range(num_preds):
-        ax[1, i].imshow(map, cmap='gray', alpha=0.5)
-        ax[1, i].imshow(preds[i], cmap='jet', alpha=0.5)
-        ax[1, i].set_title(f'Overlay of Original and Prediction Grid Maps {i+1}')
-
-    plt.show()
+    def __init__(self, num_models=2, num_outputs=4):
+        super(EnsembleModel, self).__init__()
+        self.num_models = num_models
+        self.num_outputs = num_outputs
+        
+        # Learnable weights: (num_models, num_outputs, 1, 1, 1)
+        self.weights = nn.Parameter(torch.ones(num_models, num_outputs, 1, 1, 1))
+    
+    def forward(self, outputs):
+        """
+        outputs: list of tensors, each shape [batch_size, 4, 1, 400, 400]
+        Example: [model1_out, model2_out]
+        """
+        stacked = torch.stack(outputs, dim=0)  # shape [num_models, batch, 4, 1, 400, 400]
+        softmax_weights = torch.softmax(self.weights, dim=0)  # shape [num_models, 4, 1, 1, 1]
+    
+        weighted = stacked * softmax_weights.unsqueeze(1)  # broadcast weights over batch
+        combined = weighted.sum(dim=0)  # sum over models → shape [batch, 4, 1, 400, 400]
+        
+        return combined
 
 def model_preparation(model_names, models_types):
     print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -101,39 +88,59 @@ def train_ensemble(models, device, models_types):
     ensemble = EnsembleModel(len(models)).to(device)
     optimizer = torch.optim.Adam(ensemble.parameters(), lr=1e-3)
     criterion = nn.BCEWithLogitsLoss()  # or MSELoss if smoother grayscale output
+    number_of_epochs = 1
 
-    for i in range(NUMBER_OF_CHUNCKS_TEST):
-        print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
+    for j in range(number_of_epochs):
 
-        loader = load_dataset('val', i, device, 8)
-        print("\nLenght test dataset: ", len(loader))
+        print(f"\nTraining ensemble model {j+1} of {number_of_epochs}: ")
 
-        train_loss = 0
+        for i in range(NUMBER_OF_CHUNCKS_TEST):
+            print(f"\nValidation chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
 
-        for inputs, targets in loader:
-            targets = targets.float()
+            loader = load_dataset('val', i, device, BATCH_SIZE)
+            print("\nLenght val dataset: ", len(loader))
 
-            optimizer.zero_grad()
+            train_loss = 0
+
+            for inputs, targets in loader:
+                #torch.cuda.empty_cache()
+                targets = [
+                            targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                            targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                            targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                            targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                        ]
+
+                optimizer.zero_grad()
+                
+                # Get outputs from all models
+                model_outputs = [torch.stack(model(inputs), dim=1) for model in models]  # Each output: (B, 4, 1, H, W)
+
+                #print(stacked_outputs.shape)
+                # Pass stacked outputs through the ensemble model
+                combined_outputs = ensemble(model_outputs)  # Shape: (B, 4, H, W)
+
+                # Compute the loss
+                loss = 0
+                #print(combined_outputs.shape)
+                for z in range(4):  # Iterate over the 4 outputs
+                    loss += criterion(combined_outputs[:, z], targets[z])  # Ensure shapes match
+                loss /= 4  # Average over all outputs
+
+                # Backpropagation
+                loss.backward()
+                optimizer.step()
+                train_loss += loss.item()
             
-            outputs = [model(inputs) for model in models]  # Each output: (B, 1, H, W)
-            outputs = [o.squeeze(1) for o in outputs]      # Each now: (B, H, W)
-            final_output = torch.stack(outputs, dim=1)     # (B, 3, H, W)
-            prediction = ensemble(final_output)            # (B, 1, H, W)
-            #print("shape prediction:", prediction.shape)
-            #print("shape targets:", targets.shape)
-            loss = criterion(prediction, targets)          # Works fine!
-            # Backpropagation
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
-        
-        train_loss /= len(loader)
-        print(f'Train Loss: {train_loss:.4f}')
+            train_loss /= len(loader)
+            print(f'Train Loss: {train_loss:.4f}')
+
+    print("\n----------------------------Test ensemble model----------------------------")
 
     test_losses = []
     for i in range(NUMBER_OF_CHUNCKS_TEST):  # type: ignore
         print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
-        test_loader = load_dataset('test', i, device, 8)
+        test_loader = load_dataset('test', i, device, BATCH_SIZE)
         print("\nLenght test dataset: ", len(test_loader))
         gc.collect()
 
@@ -142,15 +149,27 @@ def train_ensemble(models, device, models_types):
         with torch.no_grad():
             for data in test_loader:
                 inputs, targets = data
-                targets = targets.float()
 
-                outputs = [model(inputs) for model in models]  # Each output: (B, 1, H, W)
-                outputs = [o.squeeze(1) for o in outputs]      # Each now: (B, H, W)
-                final_output = torch.stack(outputs, dim=1)     # (B, 3, H, W)
-                prediction = ensemble(final_output)            # (B, 1, H, W)
+                targets = [
+                            targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
+                            targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
+                            targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
+                            targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                        ]
+                
+                # Get outputs from all models
+                model_outputs = [torch.stack(model(inputs), dim=1) for model in models]  # Each output: (B, 4, H, W)
 
-                # Calculate loss with true noise
-                loss = criterion(prediction, targets)
+                #print(stacked_outputs.shape)
+                # Pass stacked outputs through the ensemble model
+                combined_outputs = ensemble(model_outputs)  # Shape: (B, 4, H, W)
+
+                # Compute the loss
+                loss = 0
+                print(combined_outputs.shape)
+                for z in range(4):  # Iterate over the 4 outputs
+                    loss += criterion(combined_outputs[:, z], targets[z])  # Ensure shapes match
+                loss /= 4  # Average over all outputs
 
                 test_loss += loss.item()
         test_loss /= len(test_loader)
@@ -169,122 +188,6 @@ def train_ensemble(models, device, models_types):
     torch.save(ensemble.state_dict(), model_save_path)
     print(f'Model saved : {model_name}')
 
-def evaluate(models, device, ensemble_name):
-    test_losses = [[] for _ in range(len(models) + 1)]
-    criterion = torch.nn.BCEWithLogitsLoss()
-
-    # Load the saved ensemble model
-    model_save_path = os.path.join(MODEL_DIR, ensemble_name + '.pth')
-    ensemble = EnsembleModel(len(models))  # Initialize the model
-    ensemble.load_state_dict(torch.load(model_save_path, weights_only = True))  # Load the saved state dict
-    ensemble.to(device)  # Move to the appropriate device
-
-    ensemble.eval()
-
-    for i in range(NUMBER_OF_CHUNCKS_TEST):
-        print(f"\nTest chunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
-
-        test_loader = load_dataset('test', i, device, 8)
-        print("\nLenght test dataset: ", len(test_loader))
-
-        test_losses_chunk = [0] * (len(models) + 1)
-        with torch.no_grad():
-            for inputs, targets in test_loader:
-                targets = targets.float()
-                outputs = [model(inputs) for model in models]
-                avg_output = sum(outputs) / len(outputs)
-
-                outputs_squeeze = [o.squeeze(1) for o in outputs]      # Each now: (B, H, W)
-                final_output = torch.stack(outputs_squeeze, dim=1)     # (B, 3, H, W)
-                prediction = ensemble(final_output)            # (B, 1, H, W)
-
-                losses = [criterion(output, targets).item() for output in outputs]
-                losses.append(criterion(avg_output, targets).item())
-                losses.append(criterion(prediction, targets).item())
-                test_losses_chunk = [sum(x) for x in zip(test_losses_chunk, losses)]
-
-        test_losses_chunk = [loss / len(test_loader) for loss in test_losses_chunk]
-        for idx, loss in enumerate(test_losses_chunk[:-1]):
-            print(f'Test Loss {idx + 1}: {loss:.4f}')
-        print(f'Test Loss average: {test_losses_chunk[-2]:.4f}')
-        print(f'Test Loss ensemble: {test_losses_chunk[-1]:.4f}')
-
-        for idx, loss in enumerate(test_losses_chunk):
-            test_losses[idx].append(loss)
-
-    total_losses = [sum(losses) / len(losses) for losses in test_losses]
-
-    print("\n----------------------------Total losses----------------------------")
-
-    for idx, total_loss in enumerate(total_losses[:-1]):
-        print(f"\nTotal loss {idx + 1}:", total_loss)
-    print("\nTotal loss average:", total_losses[-2])
-    print("Total loss ensemble:", total_losses[-1])
-
-def show_predictions(models, device, ensemble_name):
-
-    # Load the saved ensemble model
-    model_save_path = os.path.join(MODEL_DIR, ensemble_name + '.pth')
-    ensemble = EnsembleModel(len(models))  # Initialize the model
-    ensemble.load_state_dict(torch.load(model_save_path, weights_only = True))  # Load the saved state dict
-    ensemble.to(device)  # Move to the appropriate device
-
-    ensemble.eval()
-
-    sigmoid = torch.nn.Sigmoid()
-
-    print("\n-----------------------------Show predictions----------------------------")
-
-    for i in range(NUMBER_OF_CHUNCKS_TEST):
-        print(f"\nChunck number {i+1} of {NUMBER_OF_CHUNCKS_TEST}")
-
-        test_loader = load_dataset('test', i, device, 1)
-        print("\nLenght of the datasets:", len(test_loader))
-
-        with torch.no_grad():
-            for data in test_loader:
-                predictions = []
-                grid_maps = []
-                gt = []
-                model_predictions = [[] for _ in models]
-                
-                inputs, target = data
-                target = target.float()
-                
-                outputs = [model(inputs) for model in models]
-                avg_output = sum(outputs) / len(outputs)
-
-                outputs_squeeze = [o.squeeze(1) for o in outputs]      # Each now: (B, H, W)
-                final_output = torch.stack(outputs_squeeze, dim=1)     # (B, 3, H, W)
-                prediction = ensemble(final_output)            # (B, 1, H, W)
-
-                # Apply sigmoid to the outputs
-                outputs = [sigmoid(output) for output in outputs]
-                avg_output = sigmoid(avg_output)
-                prediction = sigmoid(prediction)
-
-                # Apply threshold to convert outputs to 0 or 1
-                #threshold = 0.4
-                #outputs = [(output > threshold).float() for output in outputs]
-                #avg_output = (avg_output > threshold).float()
-                
-                predictions.append(avg_output)
-                predictions.append(prediction)
-                for idx, output in enumerate(outputs):
-                    model_predictions[idx].append(output)
-                
-                predictions = torch.cat(predictions).cpu().numpy()
-                model_predictions = [torch.cat(pred).cpu().numpy() for pred in model_predictions]
-                grid_maps = data[0].cpu().numpy()
-                gt = data[1].cpu().numpy()
-
-                grid_maps = grid_maps.reshape(-1, 400, 400)
-                predictions = predictions.reshape(-1, 400, 400)
-                gt = gt.reshape(-1, 400, 400)
-                model_predictions = [pred.reshape(-1, 400, 400) for pred in model_predictions]
-
-                for i in range(len(gt)):
-                    visualize_prediction(predictions, gt[i], grid_maps[4], [pred[i] for pred in model_predictions])
 
 def find_best_threshold(models, device):
     test_losses = [[] for _ in range(len(models) + 1)]
@@ -344,33 +247,21 @@ if __name__ == '__main__':
     dist.init_process_group(backend='nccl')  # Use NCCL for multi-GPU setups
     
     model_names = [
-        'model_20250408_180725_loss_0.0160_Autoencoder_big',
-        'model_20250408_164503_loss_0.0149_Autoencoder_classic',
-        'model_20250408_183632_loss_0.0164_BigUNet_autoencoder'
+        'model_ENCODER_20250501_114340_loss_0.0221_MultiHeadUNetAutoencoder',
+        'model_ENCODER_20250501_115617_loss_0.0217_MultiHeadCBAMAutoencoder'
     ]
 
-    ensemble_name = "Ensemble_model_20250409_180104_loss_0.0154_Autoencoder_big_Autoencoder_classic_BigUNet_autoencoder"
+    ensemble_name = "Ensemble_model_20250502_123438_loss_0.0209_MultiHeadUNetAutoencoder_MultiHeadCBAMAutoencoder"
 
     models_types = [
-        Autoencoder_big(),
-        Autoencoder_classic(),
-        BigUNet_autoencoder()
+        MultiHeadUNetAutoencoder(),
+        MultiHeadCBAMAutoencoder()
     ]
 
     models, device = model_preparation(model_names, models_types)
 
     #find_best_threshold(models, device)
 
-    #train_ensemble(models, device, models_types)
-
-    #evaluate(models, device, ensemble_name)
-
-    try:
-
-        show_predictions(models, device, ensemble_name)
-
-    except KeyboardInterrupt:
-        
-        print("Program interrupted by user.")
+    train_ensemble(models, device, models_types)
 
     dist.destroy_process_group()
