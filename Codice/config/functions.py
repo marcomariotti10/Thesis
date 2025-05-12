@@ -1637,3 +1637,69 @@ class MultiHeadUNetAutoencoder(nn.Module):
         outputs = [decoder(bottleneck_output, skip_connections) for decoder in self.decoders]
         return outputs
 
+class DoubleConv(nn.Module):
+    def __init__(self, in_channels, out_channels, activation_fn=nn.ReLU):
+        super(DoubleConv, self).__init__()
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            activation_fn(),
+            CBAM(out_channels),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            activation_fn(),
+            CBAM(out_channels)
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)
+
+class UNetCBAMDecoder(nn.Module):
+    def __init__(self, features, output_channels=1, activation_fn=nn.ReLU):
+        super(UNetCBAMDecoder, self).__init__()
+        self.decoder = nn.ModuleList()
+
+        for feature in reversed(features):
+            self.decoder.append(
+                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
+            )
+            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
+
+        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
+
+    def forward(self, x, skip_connections):
+        skip_connections = skip_connections[::-1]
+        for i in range(0, len(self.decoder), 2):
+            x = self.decoder[i](x)  # upsample
+            skip_connection = skip_connections[i // 2]
+            if x.shape != skip_connection.shape:
+                skip_connection = torchvision.transforms.functional.center_crop(skip_connection, x.shape[2:])
+            x = torch.cat((skip_connection, x), dim=1)
+            x = self.decoder[i + 1](x)  # DoubleConv + CBAM
+        return self.final_conv(x)
+
+class MultiHeadCBAMUNetAutoencoder(nn.Module):
+    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[32, 64, 128, 256], activation_fn=nn.ReLU, num_heads=4):
+        super(MultiHeadCBAMUNetAutoencoder, self).__init__()
+        self.encoder = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        in_channels = input_channels
+        for feature in features:
+            self.encoder.append(DoubleConv(in_channels, feature, activation_fn))
+            in_channels = feature
+
+        self.bottleneck = DoubleConv(features[-1], features[-1]*2, activation_fn)
+
+        self.decoders = nn.ModuleList([
+            UNetCBAMDecoder(features, output_channels, activation_fn) for _ in range(num_heads)
+        ])
+
+    def forward(self, x):
+        skip_connections = []
+        for down in self.encoder:
+            x = down(x)
+            skip_connections.append(x)
+            x = self.pool(x)
+
+        bottleneck_output = self.bottleneck(x)
+        outputs = [decoder(bottleneck_output, skip_connections) for decoder in self.decoders]
+        return outputs

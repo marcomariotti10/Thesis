@@ -353,7 +353,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='MultiHeadCBAMAutoencoder', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='MultiHeadCBAMUNetAutoencoder', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 

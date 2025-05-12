@@ -67,10 +67,10 @@ if __name__ == '__main__':
         print(f"\nRandom complete grid maps shape: {random_complete_grid_maps.shape}")
         print(f"Random complete grid maps BB shape: {random_complete_grid_maps_BB.shape}")
 
-        #augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB)
+        augmented_grid_maps, augmented_grid_maps_BB = apply_augmentation(random_complete_grid_maps, random_complete_grid_maps_BB)
 
-        #augmented_grid_maps = np.array(augmented_grid_maps)
-        #augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
+        augmented_grid_maps = np.array(augmented_grid_maps)
+        augmented_grid_maps_BB = np.array(augmented_grid_maps_BB)
 
         '''
         print(f"\nAugmented grid maps shape: {augmented_grid_maps.shape}")
@@ -104,12 +104,14 @@ if __name__ == '__main__':
         for i in range(100):
             print("point BB original:", random_complete_grid_maps_BB[i][0][0][0], random_complete_grid_maps_BB[i][0][399][0], random_complete_grid_maps_BB[i][0][0][399], random_complete_grid_maps_BB[i][0][399][399])
             print("point original:", random_complete_grid_maps[i][0][0][0], random_complete_grid_maps[i][0][399][0], random_complete_grid_maps[i][0][0][399], random_complete_grid_maps[i][0][399][399])
-            fig, ax = plt.subplots(2, 3, figsize=(10, 10))
-            ax[0,0].imshow(random_complete_grid_maps[i][0], cmap='gray')
-            ax[0,1].imshow(random_complete_grid_maps[i][1], cmap='gray')
-            ax[0,2].imshow(random_complete_grid_maps[i][2], cmap='gray')
-            ax[1,0].imshow(random_complete_grid_maps[i][3], cmap='gray')
-            ax[1,1].imshow(random_complete_grid_maps[i][4], cmap='gray')
-            ax[1,2].imshow(random_complete_grid_maps_BB[i][0], cmap='gray')
-
+            fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+            ax[0,0].imshow(random_complete_grid_maps[i][4], cmap='gray')
+            ax[0,0].set_title('Original Grid Map')
+            ax[0,1].imshow(augmented_grid_maps[i][4], cmap='gray')
+            ax[0,1].set_title('Augmented Grid Map')
+            ax[1,0].imshow(random_complete_grid_maps_BB[i][0], cmap='gray')
+            ax[1,0].set_title('Original Grid Map BB')
+            ax[1,1].imshow(augmented_grid_maps_BB[i][0], cmap='gray')
+            ax[1,1].set_title('Augmented Grid Map BB')
+            
             plt.show()

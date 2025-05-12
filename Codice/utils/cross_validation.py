@@ -41,8 +41,8 @@ if __name__ == "__main__":
             model.apply(initialize_weights)
             criterion = nn.BCEWithLogitsLoss()
             optimizer = optim.Adam(model.parameters(), lr=lr)
-            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
-            early_stopping = EarlyStopping(patience=10, min_delta=0.0001)
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2)
+            early_stopping = EarlyStopping(patience=3, min_delta=0.0001)
             
             # Check if CUDA is available
             #print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -80,7 +80,7 @@ if __name__ == "__main__":
                 random.seed(SEED + j)
                 train_order = random.sample(range(number_of_chuncks), number_of_chuncks)
                 #print("\nOrder of the chuncks for training:", train_order)
-                #print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
+                print(f"\nEpoch number {j+1} of {num_total_epochs}: ")
 
                 for i in range(number_of_chuncks):  # type: ignore
                     if early_stopping_triggered:
@@ -150,7 +150,7 @@ if __name__ == "__main__":
                                 val_losses.append(val_loss)
 
                             total_val_loss = sum(val_losses) / len(val_losses)
-                            #print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
+                            print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
 
                             if j >= 0:
                                 scheduler.step(val_loss)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
                                     early_stopping_triggered = True
                                     break
                         else:
-                            #print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
+                            print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
                             pass
             
             print("\nFinished at epoch:", j+1)
