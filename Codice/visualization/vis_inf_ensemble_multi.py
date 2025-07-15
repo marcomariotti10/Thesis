@@ -15,6 +15,8 @@ from ffcv.loader import Loader, OrderOption
 from ffcv.fields.decoders import NDArrayDecoder
 from ffcv.transforms import ToTensor, ToDevice
 from torch.utils.data import DataLoader, TensorDataset
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
 
 class EnsembleModel(nn.Module):
     def __init__(self, num_models=2, num_outputs=4):
@@ -117,21 +119,27 @@ def model_preparation(model_names, models_types):
     return models, device
 
 
+def compute_iou(preds, targets):
+    intersection = np.logical_and(preds, targets).sum()
+    union = np.logical_or(preds, targets).sum()
+    return intersection / union if union > 0 else 0.0
+
 def evaluate(models, device, ensemble_name):
-    
     test_losses = [[0] * 5 for _ in range(len(models) + 1)]
     criterion = torch.nn.BCEWithLogitsLoss()
 
     # Load the saved ensemble model
     model_save_path = os.path.join(MODEL_DIR, ensemble_name + '.pth')
-    ensemble = EnsembleModel(len(models))  # Initialize the model
-    ensemble.load_state_dict(torch.load(model_save_path, weights_only = True))  # Load the saved state dict
-    ensemble.to(device)  # Move to the appropriate device
+    ensemble = EnsembleModel(len(models))
+    ensemble.load_state_dict(torch.load(model_save_path, weights_only=True))
+    ensemble.to(device)
 
     print("Ensemble model weights:")
     print(ensemble.weights.data)
 
     ensemble.eval()
+
+    metrics = [{'accuracy': [], 'precision': [], 'recall': [], 'f1': [], 'iou': []} for _ in range(len(models) + 1)]
 
     for i in range(NUMBER_OF_CHUNCKS_TEST):
         print(f"\nTest chunk number {i+1} of {NUMBER_OF_CHUNCKS_TEST}: ")
@@ -139,80 +147,97 @@ def evaluate(models, device, ensemble_name):
         test_loader = load_dataset('test', i, device, BATCH_SIZE)
         print("\nLength test dataset: ", len(test_loader))
 
-        test_losses_chunk = [[0] * 5 for _ in range(len(models) + 1)]  # 4 heads + average loss
+        test_losses_chunk = [[0] * 5 for _ in range(len(models) + 1)]
+
         with torch.no_grad():
             for inputs, targets in test_loader:
                 targets = [
-                    targets[:, 0].unsqueeze(1).float(),  # Future map at time 1
-                    targets[:, 1].unsqueeze(1).float(),  # Future map at time 2
-                    targets[:, 2].unsqueeze(1).float(),  # Future map at time 3
-                    targets[:, 3].unsqueeze(1).float(),  # Future map at time 4
+                    targets[:, 0].unsqueeze(1).float(),
+                    targets[:, 1].unsqueeze(1).float(),
+                    targets[:, 2].unsqueeze(1).float(),
+                    targets[:, 3].unsqueeze(1).float(),
                 ]
 
-                # Get outputs from all models
-                model_outputs = [torch.stack(model(inputs), dim=1) for model in models]  # Each output: (B, 4, H, W)
+                model_outputs = [torch.stack(model(inputs), dim=1) for model in models]
+                combined_outputs = ensemble(model_outputs)
 
-                # Pass stacked outputs through the ensemble model
-                combined_outputs = ensemble(model_outputs)  # Shape: (B, 4, H, W)
-
-                # Compute losses for each model
+                # Loss for each model
                 for model_idx, output in enumerate(model_outputs):
-                    for head_idx in range(4):  # Iterate over the 4 heads
+                    for head_idx in range(4):
                         loss = criterion(output[:, head_idx], targets[head_idx]).item()
                         test_losses_chunk[model_idx][head_idx] += loss
-                
 
-                # Compute losses for the ensemble model
-                for head_idx in range(4):  # Iterate over the 4 heads
+                # Loss for ensemble
+                for head_idx in range(4):
                     loss = criterion(combined_outputs[:, head_idx], targets[head_idx]).item()
                     test_losses_chunk[-1][head_idx] += loss
 
+                # Metrics (accuracy, precision, recall, f1, IoU)
+                for model_idx, output in enumerate(model_outputs + [combined_outputs]):
+                    for head_idx in range(4):
+                        preds = torch.sigmoid(output[:, head_idx]) > 0.5
+                        targets_bin = targets[head_idx] > 0.5
+
+                        preds_np = preds.cpu().numpy().astype(int).flatten()
+                        targets_np = targets_bin.cpu().numpy().astype(int).flatten()
+
+                        # Skip metric calculation when there are no positive pixels in ground truth
+                        if targets_np.sum() == 0:
+                            continue
+
+                        metrics[model_idx]['accuracy'].append(accuracy_score(targets_np, preds_np))
+                        metrics[model_idx]['precision'].append(precision_score(targets_np, preds_np, zero_division=0, pos_label=1))
+                        metrics[model_idx]['recall'].append(recall_score(targets_np, preds_np, zero_division=0, pos_label=1))
+                        metrics[model_idx]['f1'].append(f1_score(targets_np, preds_np, zero_division=0, pos_label=1))
+                        metrics[model_idx]['iou'].append(compute_iou(preds_np, targets_np))
+
         for model_idx in range(len(models)):
-            #print(sum(test_losses_chunk[model_idx][:4]))
             avg_loss = sum(test_losses_chunk[model_idx][:4]) / 4
             test_losses_chunk[model_idx][4] += avg_loss
 
         avg_loss = sum(test_losses_chunk[-1][:4]) / 4
         test_losses_chunk[-1][4] += avg_loss
 
-        # Normalize losses by the number of batches
         test_losses_chunk = [[loss / len(test_loader) for loss in losses] for losses in test_losses_chunk]
 
-        # Accumulate test_losses_chunk into test_losses
         for model_idx in range(len(test_losses)):
-            for head_idx in range(5):  # Include the average loss
+            for head_idx in range(5):
                 test_losses[model_idx][head_idx] += test_losses_chunk[model_idx][head_idx]
 
-        # Print losses for each model
+        # Print losses
         for model_idx, losses in enumerate(test_losses_chunk[:-1]):
             print(f"\nModel {model_idx + 1} losses:")
             for head_idx, loss in enumerate(losses[:4]):
                 print(f"  Head {head_idx + 1} Loss: {loss:.4f}")
             print(f"  Average Loss: {losses[4]:.4f}")
 
-        # Print losses for the ensemble model
         print("\nEnsemble model losses:")
         for head_idx, loss in enumerate(test_losses_chunk[-1][:4]):
             print(f"  Head {head_idx + 1} Loss: {loss:.4f}")
         print(f"  Average Loss: {test_losses_chunk[-1][4]:.4f}")
 
-    # Compute the average losses across all chunks
+    # Final average over chunks
     test_losses = [[loss / NUMBER_OF_CHUNCKS_TEST for loss in losses] for losses in test_losses]
 
     print("\n----------------------------Total losses----------------------------")
-
-    # Print losses for each model
     for model_idx, losses in enumerate(test_losses[:-1]):
         print(f"\nModel {model_idx + 1} total losses:")
         for head_idx, loss in enumerate(losses[:4]):
             print(f"  Head {head_idx + 1} Loss: {loss:.4f}")
         print(f"  Average Loss: {losses[4]:.4f}")
 
-    # Print losses for the ensemble model
     print("\nEnsemble model total losses:")
     for head_idx, loss in enumerate(test_losses[-1][:4]):
         print(f"  Head {head_idx + 1} Loss: {loss:.4f}")
     print(f"  Average Loss: {test_losses[-1][4]:.4f}")
+
+    print("\n----------------------------Total Metrics----------------------------")
+    for model_idx, m in enumerate(metrics):
+        print(f"\nModel {model_idx + 1} total metrics:")
+        for key in m:
+            values = m[key]
+            avg = sum(values) / len(values) if values else 0
+            print(f"  {key.capitalize()}: {avg:.4f}")
 
 def show_predictions(models, device, ensemble_name):
 

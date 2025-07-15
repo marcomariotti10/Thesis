@@ -1637,9 +1637,9 @@ class MultiHeadUNetAutoencoder(nn.Module):
         outputs = [decoder(bottleneck_output, skip_connections) for decoder in self.decoders]
         return outputs
 
-class DoubleConv(nn.Module):
+class DoubleConvCBAM(nn.Module):
     def __init__(self, in_channels, out_channels, activation_fn=nn.ReLU):
-        super(DoubleConv, self).__init__()
+        super(DoubleConvCBAM, self).__init__()
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             activation_fn(),
@@ -1661,7 +1661,7 @@ class UNetCBAMDecoder(nn.Module):
             self.decoder.append(
                 nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
             )
-            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
+            self.decoder.append(DoubleConvCBAM(feature * 2, feature, activation_fn))
 
         self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
 
@@ -1673,7 +1673,7 @@ class UNetCBAMDecoder(nn.Module):
             if x.shape != skip_connection.shape:
                 skip_connection = torchvision.transforms.functional.center_crop(skip_connection, x.shape[2:])
             x = torch.cat((skip_connection, x), dim=1)
-            x = self.decoder[i + 1](x)  # DoubleConv + CBAM
+            x = self.decoder[i + 1](x)  # DoubleConvCBAM + CBAM
         return self.final_conv(x)
 
 class MultiHeadCBAMUNetAutoencoder(nn.Module):
@@ -1684,10 +1684,10 @@ class MultiHeadCBAMUNetAutoencoder(nn.Module):
 
         in_channels = input_channels
         for feature in features:
-            self.encoder.append(DoubleConv(in_channels, feature, activation_fn))
+            self.encoder.append(DoubleConvCBAM(in_channels, feature, activation_fn))
             in_channels = feature
 
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2, activation_fn)
+        self.bottleneck = DoubleConvCBAM(features[-1], features[-1]*2, activation_fn)
 
         self.decoders = nn.ModuleList([
             UNetCBAMDecoder(features, output_channels, activation_fn) for _ in range(num_heads)
