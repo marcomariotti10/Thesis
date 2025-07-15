@@ -150,7 +150,7 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
 
         complete_grid_maps_BB.append(grid_map_BB_group)
 
-def generate_combined_list(files_lidar, files_BB):
+def generate_combined_list(files_lidar, files_BB, type):
     """
     Generate a new list where each element contains NUMBER_RILEVATIONS_INPUT elements from files_lidar
     and 1 element from files_BB, which is FUTURE_TARGET_RILEVATION positions ahead of the last lidar element.
@@ -165,8 +165,19 @@ def generate_combined_list(files_lidar, files_BB):
     - combined_list: A list where each element contains NUMBER_RILEVATIONS_INPUT lidar files and 1 bounding box file.
     """
     combined_list = []
+    match type:
+        case 'train':
+            start =  int(len(files_lidar)*TEST_SIZE*2)
+            finish = int(len(files_lidar))
+        case 'val':
+            start = int(len(files_lidar)*TEST_SIZE)
+            finish = int(len(files_lidar)*TEST_SIZE*2)
+        case 'test':
+            start = 0
+            finish = int(len(files_lidar)*TEST_SIZE)
+
     #print("\nlen files_lidar:", len(files_lidar))
-    for i in range(0, len(files_lidar) - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION[-1] + 1, NUMBER_RILEVATIONS_INPUT):
+    for i in range(start, finish - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION[-1] + 1, NUMBER_RILEVATIONS_INPUT):
         # Take NUMBER_RILEVATIONS_INPUT lidar files starting from the current index
         lidar_group = files_lidar[i:i + NUMBER_RILEVATIONS_INPUT]
         # Take the FUTURE_TARGET_RILEVATION-th BB file after the last lidar file

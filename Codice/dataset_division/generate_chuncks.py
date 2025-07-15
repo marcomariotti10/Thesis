@@ -46,14 +46,7 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
 
     for i in range(NUMBER_OF_SENSORS):
 
-        all_files.append(generate_combined_list(sorted([f for f in os.listdir(lidar_paths[i])]),sorted([f for f in os.listdir(position_paths[i])])))
-
-        if chunk_type == 'train':
-            all_files = all_files[len(all_files[i])*0.2:]
-        elif chunk_type == 'val':
-            all_files = all_files[len(all_files[i])*0.1:len(all_files[i])*0.2]
-        elif chunk_type == 'test':
-            all_files = all_files[:len(all_files[i])*0.1]
+        all_files.append(generate_combined_list(sorted([f for f in os.listdir(lidar_paths[i])]),sorted([f for f in os.listdir(position_paths[i])]), chunk_type))
 
         sum_ped, sum_bic, sum_car = number_of_BB(sorted([f for f in os.listdir(position_paths[i])]), position_paths[i])
         lenght = len(sorted([f for f in os.listdir(position_paths[i])]))
