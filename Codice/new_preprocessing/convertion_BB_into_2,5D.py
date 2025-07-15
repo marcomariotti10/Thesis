@@ -183,7 +183,7 @@ if __name__ == "__main__":
         if user_input == 'all':
             threads = []
             for i in range(NUMBER_OF_SENSORS):
-                thread = threading.Thread(target=convert_BB_into_25D, args=(NEW_POSITION_LIDAR_X_DIRECTORY, POSITION_LIDAR_X_GRID, i+1))
+                thread = threading.Thread(target=convert_BB_into_25D, args=(SNAPSHOT_X_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, i+1))
                 threads.append(thread)
                 thread.start()
             
@@ -193,7 +193,7 @@ if __name__ == "__main__":
             break
     
         elif user_input.isdigit() and (1 <= int(user_input) <= NUMBER_OF_SENSORS):
-            convert_BB_into_25D(NEW_POSITION_LIDAR_X_DIRECTORY, POSITION_LIDAR_X_GRID, int(user_input))
+            convert_BB_into_25D(SNAPSHOT_X_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, int(user_input))
             break
         
         else:

@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
             # Replace 'X' in the paths with the lidar_number
             path_lidar = LIDAR_X_DIRECTORY.replace('X', user_input)
-            new_position_path = NEW_POSITION_LIDAR_X_DIRECTORY.replace('X', user_input)
+            new_position_path = SNAPSHOT_X_DIRECTORY.replace('X', user_input)
             lidar_file = LIDAR_FILE_X[int(user_input)-1]
             break
         else:

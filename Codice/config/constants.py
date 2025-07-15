@@ -17,26 +17,18 @@ HOME_DIR = HOME + r'/Codice'
 NUMBER_OF_SENSORS = 12
 
 LIDAR_X_DIRECTORY = DATA_HOME + r'/1_original/lidar_output_lidarX/lidar'
-LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_map/lidarX_grid'
+LIDAR_X_GRID_DIRECTORY = DATA_HOME + r'/3_lidar_grid_maps/lidarX'
 
-POSITIONS_DIRECTORY = DATA_HOME + r'/1_original/positionX'
+SNAPSHOT_DIRECTORY = DATA_HOME + r'/1_original/positionX'
 LIDAR_DIRECTORY = DATA_HOME + r'/1_original'
 
-NEW_POSITION_LIDAR_X_DIRECTORY = DATA_HOME + r'/2_new_positions/new_positions_lidarX'
-POSITION_LIDAR_X_GRID = DATA_HOME + r'/4_positions_grid_map/new_positions_lidarX_grid'
-
-LIDAR_X_TEST = DATA_HOME + r'/6_test/lidar_test/lidar_X'
-POSITION_X_TEST = DATA_HOME + r'/6_test/position_test/position_X'
-
-LIDAR_X_VAL = DATA_HOME + r'/7_val/lidar_val/lidar_X'
-POSITION_X_VAL = DATA_HOME + r'/7_val/position_val/position_X'
+SNAPSHOT_X_DIRECTORY = DATA_HOME + r'/2_syncronized_snapshot/snapshotX'
+SNAPSHOT_X_GRID_DIRECTORY = DATA_HOME + r'/4_snapshot_grid_maps/snapshotX'
 
 SIMULATION_DIR = HOME_DIR + r'/simulation_data'
 CONFIG_DIR = HOME_DIR + r'/config'
 
-CHUNCKS_DIR = DATA_HOME + r'/chuncks_pred'    
-
-FFCV_DIR = DATA_HOME + r'/ffcv_pred'
+FFCV_DIR = DATA_HOME + r'/FFCV'
 
 SCALER_DIR = HOME_SAVING + r'/scalers'
 

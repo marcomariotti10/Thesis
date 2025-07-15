@@ -48,6 +48,13 @@ def generate_chunk(lidar_paths, position_paths, num_chunks, chunk_type):
 
         all_files.append(generate_combined_list(sorted([f for f in os.listdir(lidar_paths[i])]),sorted([f for f in os.listdir(position_paths[i])])))
 
+        if chunk_type == 'train':
+            all_files = all_files[len(all_files[i])*0.2:]
+        elif chunk_type == 'val':
+            all_files = all_files[len(all_files[i])*0.1:len(all_files[i])*0.2]
+        elif chunk_type == 'test':
+            all_files = all_files[:len(all_files[i])*0.1]
+
         sum_ped, sum_bic, sum_car = number_of_BB(sorted([f for f in os.listdir(position_paths[i])]), position_paths[i])
         lenght = len(sorted([f for f in os.listdir(position_paths[i])]))
         print(f"\nSum_complete lidar {i+1}: ", sum_ped, sum_bic, sum_car)
@@ -118,31 +125,21 @@ if __name__ == '__main__':
     set_start_method("spawn", force=True)
     random.seed(SEED)
 
-    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_chunck_path = os.path.join(FFCV_DIR)
     os.makedirs(complete_name_chunck_path, exist_ok=True)
 
     with open(os.path.join(SCALER_DIR, 'scaler_X.pkl'), 'rb') as f:
         scaler_X = pickle.load(f)
 
-    lidar_train_direcory_list = []
-    BB_train_directory_list = []
-
-    lidar_test_direcory_list = []
-    BB_test_directory_list = []
-
-    lidar_val_direcory_list = []
-    BB_val_directory_list = []
+    lidar_direcory_list = []
+    BB_directory_list = []
 
     for i in range (1, NUMBER_OF_SENSORS+1):
-        lidar_train_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
-        BB_train_directory_list.append(POSITION_LIDAR_X_GRID.replace('X', str(i)))
-        lidar_test_direcory_list.append(LIDAR_X_TEST.replace('X', str(i)))
-        BB_test_directory_list.append(POSITION_X_TEST.replace('X', str(i)))
-        lidar_val_direcory_list.append(LIDAR_X_VAL.replace('X', str(i)))
-        BB_val_directory_list.append(POSITION_X_VAL.replace('X', str(i)))
-    
-    generate_chunk(lidar_train_direcory_list, BB_train_directory_list, NUMBER_OF_CHUNCKS, 'train')
+        lidar_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
+        BB_directory_list.append(SNAPSHOT_X_GRID_DIRECTORY.replace('X', str(i)))
+       
+    generate_chunk(lidar_direcory_list, BB_directory_list, NUMBER_OF_CHUNCKS, 'train')
 
-    generate_chunk(lidar_test_direcory_list, BB_test_directory_list, NUMBER_OF_CHUNCKS_TEST, 'test')
+    generate_chunk(lidar_direcory_list, BB_directory_list, NUMBER_OF_CHUNCKS_TEST, 'test')
 
-    generate_chunk(lidar_val_direcory_list, BB_val_directory_list, NUMBER_OF_CHUNCKS_TEST, 'val')
+    generate_chunk(lidar_direcory_list, BB_directory_list, NUMBER_OF_CHUNCKS_TEST, 'val')

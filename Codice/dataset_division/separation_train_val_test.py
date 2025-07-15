@@ -79,7 +79,7 @@ if __name__=="__main__":
 
         print(f"Lidar{i}")
         lidar_path = LIDAR_X_GRID_DIRECTORY.replace("X", str(i))
-        position_path = POSITION_LIDAR_X_GRID.replace("X", str(i))
+        position_path = SNAPSHOT_X_GRID_DIRECTORY.replace("X", str(i))
         lidar_test_path = LIDAR_X_TEST.replace("X", str(i))
         position_test_path = POSITION_X_TEST.replace("X", str(i))
         lidar_val_path = LIDAR_X_VAL.replace("X", str(i))

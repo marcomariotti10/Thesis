@@ -13,7 +13,7 @@ from ffcv.writer import DatasetWriter
 class DatasetNPY(torch.utils.data.Dataset):   
     def __init__(self, name, i):
         
-        complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+        complete_name_chunck_path = os.path.join(FFCV_DIR)
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             self.X , self.Y = executor.map(load_array, [
@@ -36,7 +36,7 @@ def load_dataset_NPY(name, i):
 
     new_name = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
 
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_ffcv_path = os.path.join(FFCV_DIR)
     complete_path = os.path.join(complete_name_ffcv_path, new_name)
 
     writer = DatasetWriter(complete_path, {
@@ -46,7 +46,7 @@ def load_dataset_NPY(name, i):
 
     writer.from_indexed_dataset(dataset)
 
-    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_chunck_path = os.path.join(FFCV_DIR)
 
     os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_{name}_{i}.npy'))
     os.remove(os.path.join(complete_name_chunck_path, f'complete_grid_maps_BB_{name}_{i}.npy'))
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     shape_input = (NUMBER_RILEVATIONS_INPUT,400,400)  # Shape of each sample
     shape_target = (len(FUTURE_TARGET_RILEVATION),400,400)  # Shape of each target
 
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_ffcv_path = os.path.join(FFCV_DIR)
     
     os.makedirs(complete_name_ffcv_path, exist_ok=True)
 

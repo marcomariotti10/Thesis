@@ -24,10 +24,9 @@ def process_lidar_chunk(lidar_directory, position_directory, files_lidar_chunck,
 def fit_scalers(lidar_paths, position_paths):
     # Initialize the scalers
     scaler_X = MinMaxScaler()
-    scaler_y = MinMaxScaler()
 
     # Parameters for processing
-    number_of_chucks = NUMBER_OF_CHUNCKS + int(NUMBER_OF_CHUNCKS*0.2)
+    number_of_chucks = NUMBER_OF_CHUNCKS
 
     random.seed(SEED)
 
@@ -91,15 +90,12 @@ def fit_scalers(lidar_paths, position_paths):
         complete_grid_maps, complete_grid_maps_BB = zip(*combined_files)
         # Convert back to lists if needed
         complete_grid_maps = list(complete_grid_maps)
-        complete_grid_maps_BB = list(complete_grid_maps_BB)
 
         # Concatenate the lists in complete_grid_maps along the first dimension
         complete_grid_maps = np.array(complete_grid_maps)
-        complete_grid_maps_BB = np.array(complete_grid_maps_BB)
 
         # Normalize the training data and save the scalers in variables
         scaler_X.partial_fit(complete_grid_maps.reshape(-1, complete_grid_maps.shape[-1]))
-        scaler_y.partial_fit(complete_grid_maps_BB.reshape(-1, complete_grid_maps_BB.shape[-1]))
 
     # Specify the directory where you want to save the scalers
     save_directory = SCALER_DIR
@@ -112,9 +108,7 @@ def fit_scalers(lidar_paths, position_paths):
     with open(os.path.join(save_directory, 'scaler_X.pkl'), 'wb') as f:
         pickle.dump(scaler_X, f)
     print("scaler_X saved")
-    with open(os.path.join(save_directory, 'scaler_y.pkl'), 'wb') as f:
-        pickle.dump(scaler_y, f)
-    print("scaler_y saved")
+
 
 if __name__ == "__main__":
 
@@ -123,6 +117,6 @@ if __name__ == "__main__":
 
     for i in range (1, NUMBER_OF_SENSORS+1):
         lidar_direcory_list.append(LIDAR_X_GRID_DIRECTORY.replace('X', str(i)))
-        BB_directory_list.append(POSITION_LIDAR_X_GRID.replace('X', str(i)))
+        BB_directory_list.append(SNAPSHOT_X_GRID_DIRECTORY.replace('X', str(i)))
 
     fit_scalers(lidar_direcory_list, BB_directory_list)

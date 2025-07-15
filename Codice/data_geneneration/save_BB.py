@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     i = 1
     while(True):
-        position_directory = POSITIONS_DIRECTORY.replace('X', str(i))       
+        position_directory = SNAPSHOT_DIRECTORY.replace('X', str(i))       
         if not os.path.exists(position_directory):
             break 
         else:

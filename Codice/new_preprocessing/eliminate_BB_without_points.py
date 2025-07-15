@@ -108,7 +108,7 @@ if __name__ == "__main__":
         if user_input.lower() == 'all':
             sensor_threads = []
             for i in range(1, NUMBER_OF_SENSORS + 1):
-                thread = threading.Thread(target=eliminate_BB, args=(LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID, POSITION_LIDAR_X_GRID_NO_BB, i))
+                thread = threading.Thread(target=eliminate_BB, args=(LIDAR_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY_NO_BB, i))
                 sensor_threads.append(thread)
                 thread.start()
             
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             print("Processing completed for all sensors.")
             break
         elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
-            eliminate_BB(LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID, POSITION_LIDAR_X_GRID_NO_BB, int(user_input))
+            eliminate_BB(LIDAR_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY_NO_BB, int(user_input))
             break
         else:
             print("Invalid input.")

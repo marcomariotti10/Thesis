@@ -109,11 +109,11 @@ if __name__ == "__main__":
         user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
         if user_input == 'all':
             for i in range(NUMBER_OF_SENSORS):
-                eliminate_BB(LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID, i+1)
+                eliminate_BB(LIDAR_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, i+1)
                 print("lidar" + str(i+1) + " done")
             break
         elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
-            eliminate_BB(LIDAR_X_GRID_DIRECTORY, POSITION_LIDAR_X_GRID, int(user_input))
+            eliminate_BB(LIDAR_X_GRID_DIRECTORY, SNAPSHOT_X_GRID_DIRECTORY, int(user_input))
             break
         else:
             print("Invalid input.")

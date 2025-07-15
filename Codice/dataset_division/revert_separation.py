@@ -42,7 +42,7 @@ def revert(all_lidar_path, all_BB_path):
     for i in range(1, NUMBER_OF_SENSORS+1):
         print(f"Reverting lidar {i}")
         lidar_grid_path  = LIDAR_X_GRID_DIRECTORY.replace("X", str(i))
-        BB_grid_path = POSITION_LIDAR_X_GRID.replace("X", str(i))
+        BB_grid_path = SNAPSHOT_X_GRID_DIRECTORY.replace("X", str(i))
         main_loop(lidar_grid_path, BB_grid_path, all_lidar_path[i-1], all_BB_path[i-1])    
 
 if __name__=="__main__":

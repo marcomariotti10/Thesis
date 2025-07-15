@@ -76,7 +76,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
     z = 1
     while(True):
         
-        position_path = POSITIONS_DIRECTORY.replace('X', str(z))       
+        position_path = SNAPSHOT_DIRECTORY.replace('X', str(z))       
         source_file = os.path.join(position_path, complete_file_name[0])
         if os.path.exists(source_file):  # Check if file exists before copying
             break
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     k = 1
     files_in_position_removed = []
     while(True):
-        path_position = POSITIONS_DIRECTORY.replace('X', str(k))       
+        path_position = SNAPSHOT_DIRECTORY.replace('X', str(k))       
         if not os.path.exists(path_position):
             break 
         else:
@@ -135,11 +135,11 @@ if __name__ == "__main__":
         user_input = input("Enter the number of the lidar for the single lidar, or enter 'all' to process all the lidar: ")
         if user_input == 'all':
             for i in range(NUMBER_OF_SENSORS):
-                preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, i+1)
+                preprocessing_data(LIDAR_X_DIRECTORY, SNAPSHOT_X_DIRECTORY, i+1)
                 print("lidar" + str(i+1) + " done")
             break
         elif (int(user_input) in range(1, NUMBER_OF_SENSORS+1)):
-            preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, int(user_input))
+            preprocessing_data(LIDAR_X_DIRECTORY, SNAPSHOT_X_DIRECTORY, int(user_input))
             break
         else:
             print("Invalid input.")

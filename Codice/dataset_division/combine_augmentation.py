@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     random.seed(SEED)
 
-    complete_name_chunck_path = os.path.join(CHUNCKS_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_chunck_path = os.path.join(FFCV_DIR)
 
     os.makedirs(complete_name_chunck_path, exist_ok=True)
 

@@ -74,7 +74,7 @@ def compare_and_save_positions(lidar_files, new_position_path):
     z = 1
     while(True):
         
-        position_path = POSITIONS_DIRECTORY.replace('X', str(z))       
+        position_path = SNAPSHOT_DIRECTORY.replace('X', str(z))       
         source_file = os.path.join(position_path, complete_file_name[0])
         if os.path.exists(source_file):  # Check if file exists before copying
             break
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     k = 1
     files_in_position_removed = []
     while(True):
-        path_position = POSITIONS_DIRECTORY.replace('X', str(k))       
+        path_position = SNAPSHOT_DIRECTORY.replace('X', str(k))       
         if not os.path.exists(path_position):
             break 
         else:
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         if user_input.lower() == 'all':
             sensor_threads = []
             for i in range(1, NUMBER_OF_SENSORS + 1):
-                thread = threading.Thread(target=preprocessing_data, args=(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, i))
+                thread = threading.Thread(target=preprocessing_data, args=(LIDAR_X_DIRECTORY, SNAPSHOT_X_DIRECTORY, i))
                 sensor_threads.append(thread)
                 thread.start()
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
             break
         
         elif user_input.isdigit() and 1 <= int(user_input) <= NUMBER_OF_SENSORS:
-            preprocessing_data(LIDAR_X_DIRECTORY, NEW_POSITION_LIDAR_X_DIRECTORY, int(user_input))
+            preprocessing_data(LIDAR_X_DIRECTORY, SNAPSHOT_X_DIRECTORY, int(user_input))
             break
         else:
             print("Invalid input.")
