@@ -65,57 +65,20 @@ def load_points_grid_map_BB (csv_file):
     return np_points, indeces
 
 # Generate each pair of grid map and bounding box map to be used for the partial fit
-def generate_combined_grid_maps_fit(grid_map_path, grid_map_BB_path, grid_map_files, grid_map_BB_files, complete_grid_maps, complete_grid_maps_BB, complete_num_BB, bool_value):
-    for file, file_BB in zip(grid_map_files, grid_map_BB_files):
+def generate_combined_grid_maps_fit(grid_map_path, grid_map_files, complete_grid_maps):
+    
+    for file in grid_map_files:
         complete_path = os.path.join(grid_map_path, file)
-        complete_path_BB = os.path.join(grid_map_BB_path, file_BB)
         #print(f"Loading {file} and {file_BB}...")
 
         points = load_points_grid_map(complete_path)
-        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
-
-        all_pairs = []
-
-        # Iterate through each row in the numpy array
-        for row in points_BB:
-            # Extract the string from the array
-            string_data = row[0]
-            # Safely evaluate the string to convert it into a list of tuples
-            pairs = ast.literal_eval(string_data)
-            # Add the pairs to the all_pairs list
-            all_pairs.extend(pairs)
             
-        all_pairs = np.array(all_pairs)
-
         grid_map_recreate = np.full((Y_RANGE, X_RANGE), FLOOR_HEIGHT, dtype=float) # type: ignore
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
 
         cols, rows, heights = points.T
         grid_map_recreate[rows.astype(int), cols.astype(int)] = heights.astype(float)
 
-        if len(all_pairs) != 0:
-            cols, rows = all_pairs.T
-            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
-        
-        if bool_value:
-            num_BB = [0,0,0]
-            with open(complete_path_BB, 'r') as file:
-                reader = csv.reader(file)
-                next(reader)  # Skip header
-                for row in reader:
-                    if row[1] == 'pedestrian':
-                        num_BB[0] += 1
-                    elif row[1] == 'bicycle':
-                        num_BB[1] += 1
-                    elif row[1] == 'car':
-                        num_BB[2] += 1
-
-            complete_grid_maps.append(grid_map_recreate)
-            complete_grid_maps_BB.append(grid_map_recreate_BB)
-            complete_num_BB.append(num_BB)
-        else:
-            complete_grid_maps.append(grid_map_recreate)
-            complete_grid_maps_BB.append(grid_map_recreate_BB)
+        complete_grid_maps.append(grid_map_recreate)
 
 def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_files, complete_grid_maps, complete_grid_maps_BB):
     
