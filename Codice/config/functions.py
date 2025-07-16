@@ -80,6 +80,32 @@ def generate_combined_grid_maps_fit(grid_map_path, grid_map_files, complete_grid
 
         complete_grid_maps.append(grid_map_recreate)
 
+def generate_combined_grid_maps_kl(grid_map_path, grid_map_files, complete_grid_maps_BB):
+    
+    for file in grid_map_files:
+        complete_path_BB = os.path.join(grid_map_path, file)
+
+        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
+
+        all_pairs = []
+
+        # Iterate through each row in the numpy array
+        for row in points_BB:
+            # Extract the string from the array
+            string_data = row[0]
+            # Safely evaluate the string to convert it into a list of tuples
+            pairs = ast.literal_eval(string_data)
+            # Add the pairs to the all_pairs list
+            all_pairs.extend(pairs)
+            
+        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
+
+        if len(all_pairs) != 0:
+            cols, rows = all_pairs.T
+            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
+
+        complete_grid_maps_BB.append(grid_map_recreate_BB)
+
 def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_files, complete_grid_maps, complete_grid_maps_BB):
     
     #print(len(grid_map_files))
@@ -165,16 +191,16 @@ def generate_combined_list(files_lidar, files_BB, type):
     - combined_list: A list where each element contains NUMBER_RILEVATIONS_INPUT lidar files and 1 bounding box file.
     """
     combined_list = []
-    match type:
-        case 'train':
-            start =  int(len(files_lidar)*TEST_SIZE*2)
-            finish = int(len(files_lidar))
-        case 'val':
-            start = int(len(files_lidar)*TEST_SIZE)
-            finish = int(len(files_lidar)*TEST_SIZE*2)
-        case 'test':
-            start = 0
-            finish = int(len(files_lidar)*TEST_SIZE)
+    #Can't use match because not supported by python 3.9
+    if type == 'train':
+        start =  int(len(files_lidar)*TEST_SIZE*2)
+        finish = int(len(files_lidar))
+    elif type == 'val':
+        start = int(len(files_lidar)*TEST_SIZE)
+        finish = int(len(files_lidar)*TEST_SIZE*2)
+    elif type == 'test':
+        start = 0
+        finish = int(len(files_lidar)*TEST_SIZE)
 
     #print("\nlen files_lidar:", len(files_lidar))
     for i in range(start, finish - NUMBER_RILEVATIONS_INPUT - FUTURE_TARGET_RILEVATION[-1] + 1, NUMBER_RILEVATIONS_INPUT):
@@ -383,7 +409,7 @@ def number_of_BB(files, path):
 def load_dataset(name,i,device, batch):
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
-    complete_name_ffcv_path = os.path.join(FFCV_DIR, f'{NUMBER_OF_CHUNCKS}_{NUMBER_OF_CHUNCKS_TEST}')
+    complete_name_ffcv_path = os.path.join(FFCV_DIR)
     complete_path_train = os.path.join(complete_name_ffcv_path, name_train)
 
     random_seed = random.randint(0, 1000)

@@ -8,7 +8,7 @@ def get_home_directory():
 
 HOME = get_home_directory()   # <---- CHANGE THIS
 
-DATA_HOME = HOME + r'/data_map03_0911_long'
+DATA_HOME = HOME + r'/data_map03_0911_test'
 
 HOME_SAVING = HOME + r'/Savings'
 
@@ -77,9 +77,9 @@ TEST_SIZE = 0.1
 NUMBER_OF_CHUNCKS = 15
 NUMBER_OF_CHUNCKS_TEST = 2
 
-NUMBER_RILEVATIONS_INPUT = 5
-FUTURE_TARGET_RILEVATION = [5,10,15,20] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
-SELECTED_FUTURE_INDEX = 3
+NUMBER_RILEVATIONS_INPUT = 1
+FUTURE_TARGET_RILEVATION = [0] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
+SELECTED_FUTURE_INDEX = 0
 
 MINIMUM_BETHA = 1e-1
 MAXIMUM_BETHA = 0.5

@@ -159,7 +159,7 @@ def train(model, device, activation_function):
     # Parameters for training
     early_stopping_triggered = False
     number_of_chuncks = NUMBER_OF_CHUNCKS
-    num_total_epochs = 100
+    num_total_epochs = 6
     num_epochs_for_each_chunck = 1
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
     batch_size = BATCH_SIZE
@@ -322,7 +322,7 @@ def test(model_type, device):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and test a neural network model.')
-    parser.add_argument('--model_type', type=str, default='Autoencoder_big_big', help='Type of model to use')
+    parser.add_argument('--model_type', type=str, default='Autoencoder_big', help='Type of model to use')
     parser.add_argument('--activation_function', type=str, default='ReLU', help='Activation function to apply to the model')
     args = parser.parse_args()
 

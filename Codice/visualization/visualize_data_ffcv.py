@@ -24,13 +24,13 @@ def visualize_pred(loader):
             
             fig, ax = plt.subplots(2,2,figsize=(10, 10))
             ax[0,0].imshow(labels[i][0], cmap='jet', alpha=0.5)
-            ax[0,0].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[0,0].imshow(images[i][-1], cmap='gray', alpha=0.5)
             ax[0,1].imshow(labels[i][1], cmap='jet', alpha=0.5)
-            ax[0,1].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[0,1].imshow(images[i][-1], cmap='gray', alpha=0.5)
             ax[1,0].imshow(labels[i][2], cmap='jet', alpha=0.5)
-            ax[1,0].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[1,0].imshow(images[i][-1], cmap='gray', alpha=0.5)
             ax[1,1].imshow(labels[i][3], cmap='jet', alpha=0.5)
-            ax[1,1].imshow(images[i][4], cmap='gray', alpha=0.5)
+            ax[1,1].imshow(images[i][-1], cmap='gray', alpha=0.5)
             plt.show()
 
 def visualize_data(loader):
@@ -73,6 +73,6 @@ if __name__ == "__main__":
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     loader = load_dataset('train', 10, device, 1)
-    #visualize_pred(loader)
+    visualize_pred(loader)
 
-    visualize_data(loader)
+    #visualize_data(loader)
