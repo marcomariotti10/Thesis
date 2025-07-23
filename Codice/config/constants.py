@@ -69,20 +69,20 @@ HEIGHT_OFFSET = 3 # Height from where consider point in the bounding boxes
 AUGMENTATION_FACTOR = 0.3
 
 # For Generate_chuncks
-MINIMUM_NUMBER_OF_RILEVATIONS = 1
+MINIMUM_NUMBER_OF_RILEVATIONS = 1 # Minimum number of past rilevations to consider a bounding box valid
 
 # For Neural_network
 SEED = 42
 TEST_SIZE = 0.1
 NUMBER_OF_CHUNCKS = 15
 NUMBER_OF_CHUNCKS_TEST = 2
+BATCH_SIZE = 4
 
-NUMBER_RILEVATIONS_INPUT = 1
+NUMBER_RILEVATIONS_INPUT = 1 #Number of rilevations used as input to the model
 FUTURE_TARGET_RILEVATION = [0] # How many step in the future to predict respect the last input rilevation (if 1 we predict the rilevation immediatly after the last one)
-SELECTED_FUTURE_INDEX = 0
+SELECTED_FUTURE_INDEX = 0 # Index of the future rilevation to use as target (if 0 we use the future rilevation corresponding to the last input rilevation)
 
+# For Diffusion model
 MINIMUM_BETHA = 1e-1
 MAXIMUM_BETHA = 0.5
 RANGE_TIMESTEPS = 1000
-
-BATCH_SIZE = 4
