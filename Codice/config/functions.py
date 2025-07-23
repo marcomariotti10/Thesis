@@ -193,11 +193,11 @@ def generate_combined_list(files_lidar, files_BB, type):
     combined_list = []
     #Can't use match because not supported by python 3.9
     if type == 'train':
-        start =  int(len(files_lidar)*TEST_SIZE*2)
-        finish = int(len(files_lidar))
+        start =  int(len(files_lidar)*TEST_SIZE)
+        finish = int(len(files_lidar)*TEST_SIZE*9)
     elif type == 'val':
-        start = int(len(files_lidar)*TEST_SIZE)
-        finish = int(len(files_lidar)*TEST_SIZE*2)
+        start = int(len(files_lidar)*TEST_SIZE*9)
+        finish = int(len(files_lidar))
     elif type == 'test':
         start = 0
         finish = int(len(files_lidar)*TEST_SIZE)

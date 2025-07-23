@@ -147,19 +147,63 @@ def define_models(model_type, activation_function):
     
     return model, device
 
+def plot_losses(train_losses, val_losses, epochs):
+    """
+    Plot training and validation losses over epochs.
+    
+    Args:
+        train_losses: List of training losses
+        val_losses: List of validation losses
+        epochs: List of epoch numbers
+    """
+    plt.figure(figsize=(12, 8))
+    
+    # Plot training losses (available for all epochs)
+    plt.plot(epochs[:len(train_losses)], train_losses, 'b-', label='Training Loss', linewidth=2)
+    
+    # Plot validation losses (only available at certain epochs)
+    if val_losses:
+        val_epochs = [epochs[i] for i in range(len(epochs)) if i < len(val_losses)]
+        plt.plot(val_epochs, val_losses, 'r-o', label='Validation Loss', linewidth=2, markersize=6)
+    
+    # Add vertical lines to mark epoch boundaries (every NUMBER_OF_CHUNCKS)
+    max_chunks = max(len(train_losses), len(val_losses)) if val_losses else len(train_losses)
+    if max_chunks > 0:
+        epoch_boundaries = list(range(NUMBER_OF_CHUNCKS, max_chunks + 1, NUMBER_OF_CHUNCKS))
+        for boundary in epoch_boundaries:
+            plt.axvline(x=boundary, color='gray', linestyle='--', alpha=0.7, linewidth=1)
+    
+    plt.xlabel('Chunk Number', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    plt.title(f'Training and Validation Loss Over Time', fontsize=14, fontweight='bold')
+    plt.legend(fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    # Save the plot
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    plot_filename = f'loss_plot_{timestamp}.png'
+    plot_path = os.path.join(MODEL_DIR, plot_filename)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    print(f"Loss plot saved as: {plot_filename}")
+    
+    # Show the plot
+    #plt.show()
+
 def train(model, device, activation_function):
     
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3)
     early_stopping = EarlyStopping(patience=5, min_delta=0.0001)
     
-    pos_weight = torch.tensor([10], device=device)
+    pos_weight = torch.tensor([1], device=device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight = pos_weight)
    
     # Parameters for training
     early_stopping_triggered = False
     number_of_chuncks = NUMBER_OF_CHUNCKS
-    num_total_epochs = 6
+    num_total_epochs = 2
     num_epochs_for_each_chunck = 1
     number_of_chuncks_val = NUMBER_OF_CHUNCKS_TEST
     batch_size = BATCH_SIZE
@@ -167,6 +211,11 @@ def train(model, device, activation_function):
     os.makedirs(MODEL_DIR, exist_ok=True)
     best_val_loss = float('inf')  # Initialize best validation loss
     best_model_path = os.path.join(MODEL_DIR, 'best_model.pth')
+    
+    # Lists to store training and validation losses for plotting
+    train_losses = []
+    val_losses_history = []
+    epochs_for_plot = []
 
     for j in range(num_total_epochs):
         if early_stopping_triggered:
@@ -232,6 +281,11 @@ def train(model, device, activation_function):
                     total_val_loss = sum(val_losses) / len(val_losses)
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}, Val Loss: {total_val_loss:.4f}        Time: {datetime.now() - start}')
 
+                    # Store losses for plotting
+                    train_losses.append(train_loss)
+                    val_losses_history.append(total_val_loss)
+                    epochs_for_plot.append(j * number_of_chuncks + i + 1)
+
                     if j >= 1:
                         if total_val_loss < best_val_loss:
                             best_val_loss = total_val_loss
@@ -246,6 +300,12 @@ def train(model, device, activation_function):
                             break
                 else:
                     print(f'Epoch {epoch+1}/{num_epochs_for_each_chunck}, Train Loss: {train_loss:.4f}                          Time: {datetime.now() - start}')
+                    # Store train loss even when not validating
+                    train_losses.append(train_loss)
+                    epochs_for_plot.append(j * number_of_chuncks + i + 1)
+
+    # Plot training and validation losses
+    plot_losses(train_losses, val_losses_history, epochs_for_plot)
 
     if "UNet" not in model_type.__name__:
         calculate_dead_neuron(model, device)
