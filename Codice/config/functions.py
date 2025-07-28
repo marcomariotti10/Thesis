@@ -42,12 +42,37 @@ if platform.system() in 'Linux':
 ############################################
 
 def load_points_grid_map(csv_file):
-    """Load bounding box vertices from a CSV file."""
+    """
+    Load 3D point cloud data from a CSV file for grid map reconstruction.
+    
+    This function reads a CSV file containing 3D coordinates (x, y, z) representing
+    LiDAR point cloud data that will be used to create occupancy grid maps.
+    
+    Args:
+        csv_file (str): Path to the CSV file containing point cloud data
+        
+    Returns:
+        np.ndarray: Array of shape (n_points, 3) containing x, y, z coordinates
+    """
     points = np.loadtxt(csv_file, delimiter=',', usecols=(0, 1, 2), dtype=float)
     return points
 
-def load_points_grid_map_BB (csv_file):
-    """Load bounding box vertices from a CSV file."""
+def load_points_grid_map_BB(csv_file):
+    """
+    Load bounding box data from a CSV file for object detection and tracking.
+    
+    This function reads bounding box information from a CSV file, extracting
+    coordinate pairs that define bounding boxes for detected objects (pedestrians,
+    vehicles, etc.) in the scene.
+    
+    Args:
+        csv_file (str): Path to the CSV file containing bounding box data
+        
+    Returns:
+        tuple: A tuple containing:
+            - np_points (np.ndarray): Array containing bounding box coordinates as strings
+            - indeces (np.ndarray): Array containing object IDs/indices
+    """
     points = []
     indeces = []
     with open(csv_file, 'r') as file:
@@ -66,6 +91,21 @@ def load_points_grid_map_BB (csv_file):
 
 # Generate each pair of grid map and bounding box map to be used for the partial fit
 def generate_combined_grid_maps_fit(grid_map_path, grid_map_files, complete_grid_maps):
+    """
+    Generate grid maps for fitting data into scaler.
+    
+    This function processes LiDAR point cloud files to create 2D occupancy grid maps
+    that represent the environment structure. Each grid map is reconstructed from
+    3D point cloud data by projecting points onto a 2D grid with height information.
+    
+    Args:
+        grid_map_path (str): Path to the directory containing grid map files
+        grid_map_files (list): List of filenames to process
+        complete_grid_maps (list): Output list to store the generated grid maps
+        
+    Returns:
+        None: Modifies complete_grid_maps list in place
+    """
     
     for file in grid_map_files:
         complete_path = os.path.join(grid_map_path, file)
@@ -80,33 +120,25 @@ def generate_combined_grid_maps_fit(grid_map_path, grid_map_files, complete_grid
 
         complete_grid_maps.append(grid_map_recreate)
 
-def generate_combined_grid_maps_kl(grid_map_path, grid_map_files, complete_grid_maps_BB):
-    
-    for file in grid_map_files:
-        complete_path_BB = os.path.join(grid_map_path, file)
-
-        points_BB, indeces = load_points_grid_map_BB(complete_path_BB)
-
-        all_pairs = []
-
-        # Iterate through each row in the numpy array
-        for row in points_BB:
-            # Extract the string from the array
-            string_data = row[0]
-            # Safely evaluate the string to convert it into a list of tuples
-            pairs = ast.literal_eval(string_data)
-            # Add the pairs to the all_pairs list
-            all_pairs.extend(pairs)
-            
-        grid_map_recreate_BB = np.full((Y_RANGE, X_RANGE), 0, dtype=float) # type: ignore
-
-        if len(all_pairs) != 0:
-            cols, rows = all_pairs.T
-            grid_map_recreate_BB[rows.astype(int), cols.astype(int)] = 1
-
-        complete_grid_maps_BB.append(grid_map_recreate_BB)
-
 def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_files, complete_grid_maps, complete_grid_maps_BB):
+    """
+    Generate combined grid maps for prediction tasks with temporal sequences.
+    
+    This function creates sequences of grid maps and corresponding bounding box maps
+    for training predictive models. It processes both environmental structure data
+    (LiDAR) and object detection data (bounding boxes) to create input-output pairs
+    for temporal prediction tasks.
+    
+    Args:
+        grid_map_path (str): Path to directory containing LiDAR grid map files
+        grid_map_BB_path (str): Path to directory containing bounding box files  
+        grid_map_files (list): List of file sequences for processing
+        complete_grid_maps (list): Output list for environmental grid map sequences
+        complete_grid_maps_BB (list): Output list for bounding box grid map sequences
+        
+    Returns:
+        None: Modifies complete_grid_maps and complete_grid_maps_BB lists in place
+    """
     
     #print(len(grid_map_files))
     
@@ -116,6 +148,7 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
         
         grid_map_group = []
 
+        # Process input sequence of environmental grid maps
         for j in range (NUMBER_RILEVATIONS_INPUT):
 
             complete_path = os.path.join(grid_map_path, grid_map_files[i][j])
@@ -129,6 +162,7 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
 
             grid_map_group.append(grid_map_recreate)
 
+            # Count actor appearances for filtering persistent objects
             complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][NUMBER_RILEVATIONS_INPUT + j])
 
             with open(complete_path_BB, 'r') as file_BB:
@@ -145,7 +179,7 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
 
         grid_map_BB_group = []
 
-        #Save the input
+        # Process future target bounding box maps
         for k in range(len(FUTURE_TARGET_RILEVATION)):   
 
             complete_path_BB = os.path.join(grid_map_BB_path, grid_map_files[i][-len(FUTURE_TARGET_RILEVATION) + k])
@@ -154,7 +188,7 @@ def generate_combined_grid_maps_pred(grid_map_path, grid_map_BB_path, grid_map_f
 
             all_pairs = []
 
-            # Iterate through each row in the numpy array
+            # Only include actors that appear frequently enough (persistent objects)
             for idx, row in enumerate(points_BB):
                 if indeces[idx] in actors and actors[indeces[idx]] >= MINIMUM_NUMBER_OF_RILEVATIONS:
                     # Extract the string from the array
@@ -215,11 +249,24 @@ def generate_combined_list(files_lidar, files_BB, type):
         combined_list.append(lidar_group + BB_files + BB_file_future)
 
     random.shuffle(combined_list)
-    #print("len combined files", len(combined_list))
-    #print("len conbined list:", len(combined_list[2]))
     return combined_list
 
 def fill_polygon(grid_map, vertices, height):
+    """
+    Fill a polygonal area in a grid map with a specified height value.
+    
+    This function takes a set of vertices defining a polygon and fills the
+    corresponding area in the grid map with the given height value. It tries
+    different vertex orderings to handle various polygon orientations.
+    
+    Args:
+        grid_map (np.ndarray): 2D grid map to modify
+        vertices (np.ndarray): Array of polygon vertices (x, y coordinates)
+        height (float): Height value to fill the polygon area with
+        
+    Returns:
+        None: Modifies grid_map in place
+    """
     # Create an empty mask with the same shape as the grid map
     mask = np.zeros_like(grid_map, dtype=np.uint8)
     
@@ -247,6 +294,22 @@ def fill_polygon(grid_map, vertices, height):
 ############################################
 
 def apply_augmentation(random_gm, random_BB):
+    """
+    Apply data augmentation techniques to grid map and bounding box data.
+    
+    This function performs random data augmentation on grid maps and their corresponding
+    bounding box annotations. It applies combinations of rotation, shifting, and flipping
+    to increase data diversity for training neural networks.
+    
+    Args:
+        random_gm (np.ndarray): Array of grid maps to augment
+        random_BB (np.ndarray): Array of corresponding bounding box maps
+        
+    Returns:
+        tuple: A tuple containing:
+            - augmented_grid_maps (list): List of augmented grid maps
+            - augmented_grid_maps_BB (list): List of augmented bounding box maps
+    """
     def random_shift(img, axis, shift):
         """
         Apply a shift to the image along the specified axis and pad with zeros.
@@ -280,12 +343,6 @@ def apply_augmentation(random_gm, random_BB):
         # Create copies to avoid modifying the original arrays
         grid_map = np.copy(random_gm[i])
         grid_map_BB = np.copy(random_BB[i])
-
-        #print("grid_map shape", grid_map.shape)
-        #print("grid_map_BB shape", grid_map_BB.shape)
-
-        # Ensure grid_map_BB has the same shape as grid_map
-        #grid_map_BB = np.squeeze(grid_map_BB)  # Remove the extra dimension (if present)
 
         # Define augmentation probabilities
         augmentations = [
@@ -334,39 +391,26 @@ def apply_augmentation(random_gm, random_BB):
             for z in range(grid_map_BB.shape[0]):
                 grid_map_BB[z] = augmentation(grid_map_BB[z])
 
-        #grid_map_BB = np.expand_dims(grid_map_BB, axis=0)  # Add the extra dimension back
-        
-        #print("first and second augmentation", first_augmentation, second_augmentation)
-
         augmented_grid_maps.append(grid_map)
         augmented_grid_maps_BB.append(grid_map_BB)
-
-        #print("first augmentation", first_augmentation)
-        #print("second augmentation", second_augmentation)
-
-        '''
-        fig, ax = plt.subplots(4, 2, figsize=(10, 10))
-        ax[0,0].imshow(random_gm[i][0], cmap='gray')
-        ax[0,1].imshow(random_BB[i][0], cmap='gray')
-
-        ax[1,0].imshow(grid_map[0], cmap='gray')
-        ax[1,1].imshow(grid_map_BB[0], cmap='gray')
-
-        ax[2,0].imshow(random_gm[i][3], cmap='gray')
-        ax[2,1].imshow(random_BB[i][3], cmap='gray')
-
-        ax[3,0].imshow(grid_map[3], cmap='gray')
-        ax[3,1].imshow(grid_map_BB[3], cmap='gray')
-
-        plt.show()
-        '''
 
     return augmented_grid_maps, augmented_grid_maps_BB
 
 
 def rotate_image(image, angle):
     """
-    Rotate an image by a specified angle.
+    Rotate an image by a specified angle using OpenCV.
+    
+    This function rotates a 2D image around its center by the given angle.
+    It uses nearest neighbor interpolation to preserve discrete values
+    in grid maps and sets border values to 0.
+    
+    Args:
+        image (np.ndarray): 2D image array to rotate
+        angle (float): Rotation angle in degrees (positive = clockwise)
+        
+    Returns:
+        np.ndarray: Rotated image with same dimensions as input
     """
     # Get the center of the image
     center = (image.shape[1] // 2, image.shape[0] // 2)
@@ -381,9 +425,38 @@ def rotate_image(image, angle):
 ############################################
 
 def load_array(file_path):
+    """
+    Load a NumPy array from a file.
+    
+    This is a simple wrapper function for np.load() to load
+    pre-saved NumPy arrays from disk.
+    
+    Args:
+        file_path (str): Path to the .npy file to load
+        
+    Returns:
+        np.ndarray: Loaded NumPy array
+    """
     return np.load(file_path)
 
 def number_of_BB(files, path):
+    """
+    Count the number of different object types (bounding boxes) in CSV files.
+    
+    This function analyzes bounding box data files to count occurrences of
+    different object types: pedestrians, bicycles, and cars. This is useful
+    for dataset analysis and class distribution statistics.
+    
+    Args:
+        files (list): List of CSV filenames to process
+        path (str): Directory path containing the CSV files
+        
+    Returns:
+        tuple: A tuple containing counts of:
+            - sum_ped (int): Number of pedestrian instances
+            - sum_bic (int): Number of bicycle instances  
+            - sum_car (int): Number of car instances
+    """
     sum_ped = 0
     sum_bic = 0
     sum_car = 0
@@ -406,7 +479,23 @@ def number_of_BB(files, path):
 #       NEURAL NETWORK FUNCTIONS           #
 ############################################
 
-def load_dataset(name,i,device, batch):
+def load_dataset(name, i, device, batch):
+    """
+    Load a dataset using FFCV (Fast Forward Computer Vision) format.
+    
+    This function creates a high-performance data loader for training neural networks
+    using FFCV format. It configures data loading pipelines with appropriate
+    transformations and device placement for efficient GPU training.
+    
+    Args:
+        name (str): Dataset type ('train', 'val', or 'test')
+        i (int): Dataset index/chunk number
+        device (torch.device): Target device for data loading (CPU/GPU)
+        batch (int): Batch size for data loading
+        
+    Returns:
+        ffcv.Loader: Configured FFCV data loader with preprocessing pipelines
+    """
     
     name_train = f"dataset_{name}{i}.beton"  # Define the path where the dataset will be written
     complete_name_ffcv_path = os.path.join(FFCV_DIR)
@@ -433,17 +522,6 @@ def load_dataset(name,i,device, batch):
 
     return train_loader
 
-
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        init.kaiming_normal_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            init.constant_(m.bias, 0)
-    elif isinstance(m, nn.Linear):
-        init.kaiming_normal_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            init.constant_(m.bias, 0)
-
 def initialize_weights(m):
     """Applies weight initialization to the model layers."""
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):  
@@ -458,175 +536,149 @@ def initialize_weights(m):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
 
-def check_dead_neurons_autoencoder(model, input_data, target_data, activation_fn=nn.ReLU):
-    model.eval()
-    dead_neurons = {}
-    
-    def hook_fn(module, input, output, layer_name):
-        # Debugging: Print layer name and output shape
-        #print(f"Hook triggered for layer: {layer_name}, output shape: {output.shape}")
-        
-        num_zeros = (output == 0).sum().item()
-        total_neurons = output.numel()
-        zero_percentage = (num_zeros / total_neurons) * 100
-        dead_neurons[layer_name] = zero_percentage
+class EarlyStopping:
+    def __init__(self, patience=5, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.best_loss = None
+        self.counter = 0
+        self.early_stop = False
 
-    hooks = []
-    for name, module in model.named_modules():
-        if isinstance(module, activation_fn):  
-            hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+
+def calculate_dead_neuron(model, device):
+    """
+    Calculate the percentage of dead neurons in autoencoder layers.
+    
+    This function analyzes a trained autoencoder model to identify neurons
+    that consistently output zero values (dead neurons). It processes both
+    encoder and decoder layers separately and provides statistics.
+    
+    Args:
+        model (nn.Module): Autoencoder model to analyze
+        device (torch.device): Device for computation (CPU/GPU)
+        
+    Returns:
+        None: Prints dead neuron percentages for each layer
+    """
+    # Function to calculate dead neuron percentage
+    def dead_neuron_percentage(activations):
+        # activations: (batch_size, num_neurons, height, width)
+        print(activations.shape)
+        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
+        # For each neuron, check if it was always zero across the batch
+        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
+        return 100.0 * dead_neurons / activations.shape[1]
+    
+    # Get the first batch of data
+    loader = load_dataset('train', 0, device, 16)
+    first_batch = next(iter(loader))
+
+    # Unpack the inputs and targets from the first batch
+    x, targets = first_batch
 
     with torch.no_grad():
-        _ = model(input_data)  # Forward pass to collect activations
+        # Dynamically compute encoder activations
+        encoder_activations = []
+        activation = x
+        for layer in model.encoder:
+            activation = layer(activation)
+            encoder_activations.append(activation)
 
-    for hook in hooks:
-        hook.remove()  # Clean up hooks
+        # Dynamically compute decoder activations
+        decoder_activations = []
+        activation = encoder_activations[-1]  # Start with the last encoder activation
+        for layer in model.decoder:
+            activation = layer(activation)
+            decoder_activations.append(activation)
 
-    print("\nDead Neurons:")
-    for layer, percentage in dead_neurons.items():
-        print(f"Layer {layer}: {percentage:.2f}% dead neurons")
-    print("\n")
+    # Calculate and print dead neuron percentages for encoder and decoder layers
+    print("ENCODER LAYERS\n")
+    for i, e_activation in enumerate(encoder_activations):
+        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
 
-def check_dead_neurons(model, input_data, target_data, activation_fn=nn.ReLU):
-    model.eval()
-    dead_neurons = {}
+    print("\nDECODER LAYERS\n")
+    for i, d_activation in enumerate(decoder_activations):
+        print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
+
+def calculate_dead_neuron_multi(model, device):
+    """
+    Calculate dead neuron percentages for multi-head autoencoder models.
     
-    def hook_fn(module, input, output, layer_name):
-        # Debugging: Print layer name and output shape
-        #print(f"Hook triggered for layer: {layer_name}, output shape: {output.shape}")
+    This function extends dead neuron analysis to multi-head architectures
+    where multiple decoder heads share a common encoder. It analyzes the
+    shared encoder and each decoder head separately.
+    
+    Args:
+        model (nn.Module): Multi-head autoencoder model to analyze
+        device (torch.device): Device for computation (CPU/GPU)
         
-        num_zeros = (output == 0).sum().item()
-        total_neurons = output.numel()
-        zero_percentage = (num_zeros / total_neurons) * 100
-        dead_neurons[layer_name] = zero_percentage
+    Returns:
+        None: Prints dead neuron percentages for encoder and each decoder head
+    """
+    # Function to calculate dead neuron percentage
+    def dead_neuron_percentage(activations):
+        # activations: (batch_size, num_neurons, height, width)
+        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
+        # For each neuron, check if it was always zero across the batch
+        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
+        return 100.0 * dead_neurons / num_neurons
 
-    hooks = []
-    for name, module in model.named_modules():
-        if isinstance(module, activation_fn):  
-            hooks.append(module.register_forward_hook(lambda m, i, o, n=name: hook_fn(m, i, o, n)))
-    
-    alpha_cumprod = get_noise_schedule()
-    t = torch.randint(5, RANGE_TIMESTEPS, (input_data.shape[0],))  # Random timestep
-    target_data = target_data.float()
-    noisy_target, noise = get_noisy_target(target_data, alpha_cumprod, t)
-    t_tensor = t.view(-1, 1, 1, 1).expand_as(target_data)  # Reshape and expand to match targets' shape
-    t_tensor = t_tensor / (RANGE_TIMESTEPS - 1)  # Normalize t_tensor to scale values between 0 and 1                   
-    t_tensor = t_tensor.to(target_data.device)  # Move t_tensor to GPU
+    # Get the first batch of data
+    loader = load_dataset('train', 0, device, 16)
+    first_batch = next(iter(loader))
+
+    # Unpack the inputs and targets from the first batch
+    x, targets = first_batch
 
     with torch.no_grad():
-        _ = model(input_data, noisy_target, t_tensor)  # Forward pass to collect activations
+        # Dynamically compute encoder activations
+        encoder_activations = []
+        activation = x
+        for layer in model.encoder:
+            activation = layer(activation)
+            encoder_activations.append(activation)
 
-    for hook in hooks:
-        hook.remove()  # Clean up hooks
+        # Dynamically compute decoder activations for each head
+        decoder_activations = []
+        for decoder in model.decoder:  # Iterate over each decoder head
+            activation = encoder_activations[-1]  # Start with the last encoder activation
+            head_activations = []
+            for layer in decoder:
+                activation = layer(activation)
+                head_activations.append(activation)
+            decoder_activations.append(head_activations)
 
-    print("\nDead Neurons:")
-    for layer, percentage in dead_neurons.items():
-        print(f"Layer {layer}: {percentage:.2f}% dead neurons")
-    print("\n")
+    # Calculate and print dead neuron percentages for encoder layers
+    print("ENCODER LAYERS\n")
+    for i, e_activation in enumerate(encoder_activations):
+        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
 
-class TimestepEmbedding(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.linear = nn.Linear(1, dim)  # Map scalar timestep to embedding of size 'dim'
+    # Calculate and print dead neuron percentages for each decoder head
+    print("\nDECODER LAYERS\n")
+    for head_idx, head_activations in enumerate(decoder_activations):
+        print(f"Decoder Head {head_idx + 1}:\n")
+        for i, d_activation in enumerate(head_activations):
+            print(f"  Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
 
-    def forward(self, timesteps):
-        # Now timesteps is expected to be of shape (batch_size, 1)
-        timesteps = timesteps.float()  # Ensure the type is float
-        print(timesteps)
-        print(timesteps.shape)
-        print(self.linear(timesteps).shape)
-        return self.linear(timesteps)   # Returns tensor of shape (batch_size, dim)
 
-# Dummy noise scheduler for illustration (replace with your actual DDPMScheduler)
-class DDPMScheduler:
-    def __init__(self, num_train_timesteps, beta_schedule):
-        self.num_train_timesteps = num_train_timesteps
-        self.beta_schedule = beta_schedule
 
-    def add_noise(self, x, noise, timestep):
-        # A simple noise addition for demonstration
-        # In practice, the noise addition is more complex and depends on timestep
-        return x + noise
+############################################
+#            MODELS SINGLE HEAD            #
+############################################
 
-# Revised DiffusionPredictor class
-class DiffusionPredictor(nn.Module):
-    def __init__(self, img_size=400, in_channels=5, out_channels=1, time_embed_dim=128):
-        super().__init__()
-
-        # Initialize UNet (configure with your actual parameters)
-        self.unet = UNet2DModel(
-            sample_size=img_size,
-            in_channels=in_channels,  # e.g., 5 past frames as input
-            out_channels=out_channels,  # e.g., predict 1 future frame
-            layers_per_block=2,
-            block_out_channels=(64, 128, 256, 512),
-            down_block_types=("DownBlock2D", "DownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D"),
-            up_block_types=("AttnUpBlock2D", "AttnUpBlock2D", "UpBlock2D", "UpBlock2D"),
-        )
-
-        # Timestep embedding
-        self.time_embedding = TimestepEmbedding(time_embed_dim)
-        
-        # Noise scheduler (DDPM for basic diffusion training)
-        self.noise_scheduler = DDPMScheduler(num_train_timesteps=1000, beta_schedule="linear")
-    
-    def forward(self, x):
-        """
-        Forward pass for general diffusion training.
-        Expected x shape: (batch_size, 5, 400, 400)
-        """
-        batch_size = x.size(0)
-        
-        # Instead of using a fixed timestep, we sample a random timestep for each sample.
-        # This samples an integer from [0, num_train_timesteps)
-        timestep = torch.randint(0, self.noise_scheduler.num_train_timesteps, (batch_size, 1), device=x.device)
-        
-        # Create the timestep embedding (shape: (batch_size, time_embed_dim))
-        timestep_emb = self.time_embedding(timestep)
-        
-        # Add noise to the input image x
-        noise = torch.randn_like(x)
-        noisy_x = self.noise_scheduler.add_noise(x, noise, timestep)
-        
-        # Use UNet to predict the noise at the current timestep.
-        noise_pred = self.unet(noisy_x, timestep_emb)
-        return noise_pred
-
-class Autoencoder_classic(nn.Module):
+class Autoencoder(nn.Module):
     def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
-        super(Autoencoder_classic, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2)
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
-class Autoencoder_big(nn.Module):
-    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
-        super(Autoencoder_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
+        super(Autoencoder, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
         self.encoder = nn.Sequential(
             nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 64, kernel_size=3, padding=1),
             activation_fn(),
@@ -658,52 +710,6 @@ class Autoencoder_big(nn.Module):
         x = self.decoder(x).contiguous()
         return x
 
-class Autoencoder_big_big(nn.Module):
-    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
-        super(Autoencoder_big_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
 class DoubleConv(nn.Module):
     """Two convolutional layers with batch normalization and ReLU activation."""
     def __init__(self, in_channels, out_channels, activation_fn):
@@ -719,160 +725,8 @@ class DoubleConv(nn.Module):
         return self.conv(x)
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, features=[32, 64, 128], activation_fn=nn.ReLU):
-        super().__init__()
-        
-        self.encoder = nn.ModuleList()
-        self.decoder = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        
-        # Encoder path
-        for feature in features:
-            self.encoder.append(DoubleConv(in_channels, feature, activation_fn ))
-            in_channels = feature
-        
-        # Bottleneck
-        self.bottleneck = DoubleConv(features[-1], features[-1] * 2, activation_fn)
-        
-        # Decoder path
-        for feature in reversed(features):
-            self.decoder.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
-            )
-            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
-        
-        # Final output layer
-        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
-    
-    def forward(self, x):
-        skip_connections = []
-        
-        # Encoder forward pass
-        for down in self.encoder:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
-        
-        # Bottleneck
-        x = self.bottleneck(x)
-        
-        # Decoder forward pass
-        skip_connections = skip_connections[::-1]  # Reverse skip connections
-        for i in range(0, len(self.decoder), 2):
-            x = self.decoder[i](x)  # Transposed convolution (upsampling)
-            skip_connection = skip_connections[i // 2]
-            x = torch.cat((skip_connection, x), dim=1)  # Concatenate skip connection
-            x = self.decoder[i + 1](x)  # DoubleConv layer
-    
-        return self.final_conv(x)  # Sigmoid for binary segmentation
-
-class EarlyStopping:
-    def __init__(self, patience=5, min_delta=0):
-        self.patience = patience
-        self.min_delta = min_delta
-        self.best_loss = None
-        self.counter = 0
-        self.early_stop = False
-
-    def __call__(self, val_loss):
-        if self.best_loss is None:
-            self.best_loss = val_loss
-        elif val_loss < self.best_loss - self.min_delta:
-            self.best_loss = val_loss
-            self.counter = 0
-        else:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.early_stop = True
-
-class WeightedCustomLoss(nn.Module):
-    def __init__(self, weight=100):
-        super(WeightedCustomLoss, self).__init__()
-        self.mse_loss = nn.MSELoss()
-        self.weight = weight
-
-    def forward(self, predictions, targets):
-        from constants import FLOOR_HEIGHT
-        mask = (targets != 0).float()
-        masked_predictions = predictions * mask
-        masked_targets = targets * mask
-        loss = self.mse_loss(masked_predictions, masked_targets)
-        
-        # Apply weighting to the loss
-        weighted_loss = loss * self.weight + self.mse_loss(predictions * (1 - mask), targets * (1 - mask))
-        return weighted_loss
-    
-
-# Linear noise schedule function
-def get_noise_schedule():
-    beta_t = torch.linspace(MINIMUM_BETHA, MAXIMUM_BETHA, RANGE_TIMESTEPS)  # Noise schedule
-    alpha_t = 1.0 - beta_t
-    alpha_cumprod = torch.cumprod(alpha_t, dim=0)  # Cumulative product of alpha
-    return beta_t, alpha_t, alpha_cumprod
-
-def get_noisy_target(x0, alpha_cumprod, t):
-    """
-    Adds noise to the future target (x0) based on the diffusion process.
-    
-    Args:
-        x0 (torch.Tensor): The ground truth future binary grid map (B, 1, 400, 400).
-        alpha_cumprod (torch.Tensor): Precomputed cumulative product of alpha values.
-        t (torch.Tensor): Timestep indices (B,).
-    
-    Returns:
-        x_t (torch.Tensor): The noisy future frame at timestep t.
-        noise (torch.Tensor): The added Gaussian noise.
-    """
-
-    # Sample Gaussian noise with the same shape as x0
-    noise = torch.randn_like(x0)
-    #print("min and max values of noise", noise.min(), noise.max())
-    #print("min and max values of x0", x0.min(), x0.max())
-    noise = noise.to(x0.device)
-
-    # Gather alpha_cumprod[t] for each sample in the batch
-    alpha_t = alpha_cumprod[t].view(-1, 1, 1, 1)  # Reshape for broadcasting to have shape (B, C, H, W)
-    alpha_t = alpha_t.to(x0.device)
-
-    # Apply the forward diffusion equation
-    x_t = torch.sqrt(alpha_t) * x0 + torch.sqrt(1 - alpha_t) * noise
-
-    #print("min and max values before norm", x_t.min(), x_t.max())
-
-    #print("x_t shape before norm", x_t.shape)
-
-    # Normalize x_t to the range [0, 1]
-    x_t = torch.clamp(x_t, 0, 1)  # Ensure values are in the range [0, 1]
-    #print("min and max values", x_t.min(), x_t.max())
-
-    #print("x_t shape", x_t.shape)
-
-    return x_t, noise  # Return both x_t and the added noise for training
-
-class ConditionalUNet(nn.Module):
-    def __init__(self, input_channels=7, hidden_dim=64, activation_fn=nn.ReLU):
-        super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(input_channels, hidden_dim, 3, padding=1),
-            activation_fn(),
-            nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
-            activation_fn()
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1),
-            activation_fn(),
-            nn.Conv2d(hidden_dim, 1, 3, padding=1)
-        )
-
-    def forward(self, x_t, past_frames, timestep):
-        x = torch.cat([x_t, past_frames, timestep], dim=1)  # Concatenate past frames with noisy target
-        h = self.encoder(x)
-        out = self.decoder(h)
-        return out  # Predict noise (ε)
-
-class BigUNet(nn.Module):
     def __init__(self, input_channels=7, output_channels=1, features=[16, 32, 64, 128], activation_fn=nn.ReLU):
-        super(BigUNet, self).__init__()
+        super(UNet, self).__init__()
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -925,365 +779,19 @@ class BigUNet(nn.Module):
         _, _, h, w = x.shape
         skip = torchvision.transforms.functional.center_crop(skip, [h, w])
         return skip
-
-class BigUNet_autoencoder(nn.Module):
-    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[16, 32, 64, 128], activation_fn=nn.ReLU):
-        super(BigUNet_autoencoder, self).__init__()
-        self.encoder = nn.ModuleList()
-        self.decoder = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Encoder path
-        for feature in features:
-            self.encoder.append(DoubleConv(input_channels, feature, activation_fn))
-            input_channels = feature
-
-        # Bottleneck
-        self.bottleneck = DoubleConv(features[-1], features[-1] * 2, activation_fn)
-
-        # Decoder path
-        for feature in reversed(features):
-            self.decoder.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
-            )
-            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
-
-        # Final output layer
-        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
-
-    def forward(self, x):
-        skip_connections = []
-
-        # Encoder forward pass
-        for down in self.encoder:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
-
-        # Bottleneck
-        x = self.bottleneck(x)
-
-        # Decoder forward pass
-        skip_connections = skip_connections[::-1]  # Reverse skip connections
-        for i in range(0, len(self.decoder), 2):
-            x = self.decoder[i](x)  # Transposed convolution (upsampling)
-            skip_connection = skip_connections[i // 2]
-            if x.shape != skip_connection.shape:
-                x = self._crop(skip_connection, x)  # Crop skip connection to match the size of x
-            x = torch.cat((skip_connection, x), dim=1)  # Concatenate skip connection
-            x = self.decoder[i + 1](x)  # DoubleConv layer
-
-        return self.final_conv(x)  # Final output layer
-
-    def _crop(self, skip, x):
-        """Crop the skip connection to match the size of x."""
-        _, _, h, w = x.shape
-        skip = torchvision.transforms.functional.center_crop(skip, [h, w])
-        return skip
     
-class BigUNet_big_autoencoder(nn.Module):
-    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[32, 64, 128, 256], activation_fn=nn.ReLU):
-        super(BigUNet_big_autoencoder, self).__init__()
-        self.encoder = nn.ModuleList()
-        self.decoder = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Encoder path
-        for feature in features:
-            self.encoder.append(DoubleConv(input_channels, feature, activation_fn))
-            input_channels = feature
-
-        # Bottleneck
-        self.bottleneck = DoubleConv(features[-1], features[-1] * 2, activation_fn)
-
-        # Decoder path
-        for feature in reversed(features):
-            self.decoder.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
-            )
-            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
-
-        # Final output layer
-        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
-
-    def forward(self, x):
-        skip_connections = []
-
-        # Encoder forward pass
-        for down in self.encoder:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
-
-        # Bottleneck
-        x = self.bottleneck(x)
-
-        # Decoder forward pass
-        skip_connections = skip_connections[::-1]  # Reverse skip connections
-        for i in range(0, len(self.decoder), 2):
-            x = self.decoder[i](x)  # Transposed convolution (upsampling)
-            skip_connection = skip_connections[i // 2]
-            if x.shape != skip_connection.shape:
-                x = self._crop(skip_connection, x)  # Crop skip connection to match the size of x
-            x = torch.cat((skip_connection, x), dim=1)  # Concatenate skip connection
-            x = self.decoder[i + 1](x)  # DoubleConv layer
-
-        return self.final_conv(x)  # Final output layer
-
-    def _crop(self, skip, x):
-        """Crop the skip connection to match the size of x."""
-        _, _, h, w = x.shape
-        skip = torchvision.transforms.functional.center_crop(skip, [h, w])
-        return skip
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-
-def train_step(model, optimizer, past_frames, future_frame, alpha_cumprod, T):
-    device = past_frames.device  # Ensure everything is on the same device
-    t = torch.randint(5, T, (past_frames.shape[0],))  # Random timestep for each sample
-    noise = torch.randn_like(future_frame, device=device)  # Sample random noise
-
-    # Start with a noisy version of the future frame
-    sqrt_alpha_cumprod = alpha_cumprod.to(device)[t].view(-1, 1, 1, 1)
-    noisy_future = sqrt_alpha_cumprod * future_frame + (1 - sqrt_alpha_cumprod) * noise
-
-    # Now we run for t steps (not T steps, only until the selected timestep)
-    total_loss = 0
-    torch.cuda.empty_cache()
-    for batch_idx in range(past_frames.shape[0]):  # Iterate over each sample in the batch
-        
-        noisy_future = sqrt_alpha_cumprod[batch_idx] * future_frame[batch_idx] + (1 - sqrt_alpha_cumprod[batch_idx]) * noise
-        
-        for step in range(t[batch_idx], -1, -1):  # Iterate backwards from selected t to 0
-            # Predict the noise for this timestep
-            predicted_noise = model(noisy_future, past_frames)
-
-            # Update the noisy frame by removing predicted noise (refine frame)
-            noisy_future = noisy_future - predicted_noise  # Refine frame with denoising
-
-            # Calculate loss with true noise
-            loss = F.mse_loss(predicted_noise, noise)
-            total_loss += loss
-            torch.cuda.empty_cache()
-
-    # Backpropagation
-    optimizer.zero_grad()
-    total_loss.backward()
-    optimizer.step()
-
-    return total_loss.item()
-
-from tqdm import tqdm
-
-def train_model(model, dataloader, epochs=10, T=100, lr=1e-3):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)  # Move model to GPU (if available)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    summary(model, input_size=[(5, 400, 400), (1, 400, 400), (1,400,400)])
-    # Get noise schedule
-    alpha_cumprod = get_noise_schedule(T)
-    print(alpha_cumprod)
-
-    torch.cuda.empty_cache()
-
-    for epoch in range(epochs):
-        total_loss = 0  # Track total loss for the epoch
-        for past_frames, future_frame in tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}"):
-            past_frames, future_frame = past_frames.to(device), future_frame.to(device)  # Move to GPU if needed
-
-            # Call `train_step` for each pair
-            loss = train_step(model, optimizer, past_frames, future_frame, alpha_cumprod, T)
-            total_loss += loss  # Accumulate loss
-        
-        torch.cuda.empty_cache()
-
-        avg_loss = total_loss / len(dataloader)  # Compute average loss
-        print(f"Epoch {epoch+1}: Loss = {avg_loss:.4f}")  # Print epoch loss
-
-def sample_future_frame(model, past_frames, T=100):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    past_frames = past_frames.to(device)
-
-    x_t = torch.randn_like(past_frames[:, :1, :, :])  # Start from pure noise
-
-    for t in reversed(range(T)):
-        t_tensor = torch.tensor([t], dtype=torch.float32).to(device)
-        predicted_noise = model(x_t, past_frames, t_tensor)
-        x_t = x_t - predicted_noise  # Denoising step
-
-    return x_t  # Predicted future frame
-
-def train_step_old(model, optimizer, past_frames, future_frame, alpha_cumprod, T):
-    device = past_frames.device  # Ensure everything is on the same device
-    t = torch.randint(0, T, (past_frames.shape[0],), device=device)  # Random timestep
-    noise = torch.randn_like(future_frame, device=device)  # Sample random noise
-
-    # Start with a noisy version of the future frame
-    sqrt_alpha_cumprod = alpha_cumprod.to(device)[t].view(-1, 1, 1, 1)
-    noisy_future = sqrt_alpha_cumprod * future_frame + (1 - sqrt_alpha_cumprod) * noise
-
-    # Now we run for T steps
-    total_loss = 0
-    for step in range(T-1, -1, -1):  # Iterating backwards from T-1 to 0
-        t_tensor = torch.tensor([step], dtype=torch.float32, device=device)  # Current timestep
-
-        # Predict the noise for this timestep
-        predicted_noise = model(noisy_future, past_frames)
-
-        # Update the noisy frame by removing predicted noise
-        noisy_future = noisy_future - predicted_noise  # Refine frame with denoising
-
-        # Calculate loss with true noise
-        loss = F.mse_loss(predicted_noise, noise)
-        total_loss += loss
-
-    # Backpropagation
-    optimizer.zero_grad()
-    total_loss.backward()
-    optimizer.step()
-
-    return total_loss.item()
-
-def calculate_dead_neuron(model, device):
-    # Function to calculate dead neuron percentage
-    def dead_neuron_percentage(activations):
-        # activations: (batch_size, num_neurons, height, width)
-        print(activations.shape)
-        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
-        # For each neuron, check if it was always zero across the batch
-        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
-        return 100.0 * dead_neurons / activations.shape[1]
-    
-    # Get the first batch of data
-    loader = load_dataset('train', 0, device, 16)
-    first_batch = next(iter(loader))
-
-    # Unpack the inputs and targets from the first batch
-    x, targets = first_batch
-
-    with torch.no_grad():
-        # Dynamically compute encoder activations
-        encoder_activations = []
-        activation = x
-        for layer in model.encoder:
-            activation = layer(activation)
-            encoder_activations.append(activation)
-
-        # Dynamically compute decoder activations
-        decoder_activations = []
-        activation = encoder_activations[-1]  # Start with the last encoder activation
-        for layer in model.decoder:
-            activation = layer(activation)
-            decoder_activations.append(activation)
-
-    # Calculate and print dead neuron percentages for encoder and decoder layers
-    print("ENCODER LAYERS\n")
-    for i, e_activation in enumerate(encoder_activations):
-        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
-
-    print("\nDECODER LAYERS\n")
-    for i, d_activation in enumerate(decoder_activations):
-        print(f"Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
-
-def calculate_dead_neuron_multi(model, device):
-    # Function to calculate dead neuron percentage
-    def dead_neuron_percentage(activations):
-        # activations: (batch_size, num_neurons, height, width)
-        num_neurons = activations.shape[1] * activations.shape[2] * activations.shape[3]
-        # For each neuron, check if it was always zero across the batch
-        dead_neurons = (activations == 0).all(dim=(0, 2, 3)).sum().item()
-        return 100.0 * dead_neurons / num_neurons
-
-    # Get the first batch of data
-    loader = load_dataset('train', 0, device, 16)
-    first_batch = next(iter(loader))
-
-    # Unpack the inputs and targets from the first batch
-    x, targets = first_batch
-
-    with torch.no_grad():
-        # Dynamically compute encoder activations
-        encoder_activations = []
-        activation = x
-        for layer in model.encoder:
-            activation = layer(activation)
-            encoder_activations.append(activation)
-
-        # Dynamically compute decoder activations for each head
-        decoder_activations = []
-        for decoder in model.decoder:  # Iterate over each decoder head
-            activation = encoder_activations[-1]  # Start with the last encoder activation
-            head_activations = []
-            for layer in decoder:
-                activation = layer(activation)
-                head_activations.append(activation)
-            decoder_activations.append(head_activations)
-
-    # Calculate and print dead neuron percentages for encoder layers
-    print("ENCODER LAYERS\n")
-    for i, e_activation in enumerate(encoder_activations):
-        print(f"Dead neurons in encoder layer {i + 1}: {dead_neuron_percentage(e_activation):.2f}%")
-
-    # Calculate and print dead neuron percentages for each decoder head
-    print("\nDECODER LAYERS\n")
-    for head_idx, head_activations in enumerate(decoder_activations):
-        print(f"Decoder Head {head_idx + 1}:\n")
-        for i, d_activation in enumerate(head_activations):
-            print(f"  Dead neurons in decoder layer {i + 1}: {dead_neuron_percentage(d_activation):.2f}%")
-
-class Autoencoder_big_big(nn.Module):
-    def __init__(self, activation_fn=nn.ReLU): # Constructor method for the autoencoder
-        super(Autoencoder_big_big, self).__init__() # Calls the constructor of the parent class (nn.Module) to set up necessary functionality.
-        self.encoder = nn.Sequential(
-            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-        )
-        self.decoder = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
-        )
-
-    def forward(self, x): # The forward method defines the computation that happens when the model is called with input x.
-        x = self.encoder(x).contiguous()
-        x = self.decoder(x).contiguous()
-        return x
-
 class ChannelAttention(nn.Module):
+    """
+    Channel Attention Module from CBAM (Convolutional Block Attention Module).
+    
+    This module computes attention weights for each channel in the feature map
+    by using both average pooling and max pooling operations followed by a
+    shared MLP. It helps the network focus on the most informative channels.
+    
+    Args:
+        in_planes (int): Number of input channels
+        reduction (int): Reduction ratio for the MLP bottleneck (default: 16)
+    """
     def __init__(self, in_planes, reduction=16):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -1303,6 +811,16 @@ class ChannelAttention(nn.Module):
         return self.sigmoid(out) * x
 
 class SpatialAttention(nn.Module):
+    """
+    Spatial Attention Module from CBAM (Convolutional Block Attention Module).
+    
+    This module computes attention weights for each spatial location in the
+    feature map by using channel-wise average and max pooling followed by
+    a convolutional layer. It helps the network focus on important spatial regions.
+    
+    Args:
+        kernel_size (int): Size of the convolutional kernel (default: 7, must be 3 or 7)
+    """
     def __init__(self, kernel_size=7):
         super(SpatialAttention, self).__init__()
         assert kernel_size in (3, 7), 'Kernel size must be 3 or 7'
@@ -1319,6 +837,18 @@ class SpatialAttention(nn.Module):
         return attention * x
 
 class CBAM(nn.Module):
+    """
+    Convolutional Block Attention Module (CBAM).
+    
+    CBAM is an attention mechanism that combines both channel and spatial attention
+    to improve feature representation. It sequentially applies channel attention
+    followed by spatial attention to refine feature maps.
+    
+    Args:
+        in_planes (int): Number of input channels
+        reduction (int): Reduction ratio for channel attention (default: 16)
+        kernel_size (int): Kernel size for spatial attention (default: 7)
+    """
     def __init__(self, in_planes, reduction=16, kernel_size=7):
         super(CBAM, self).__init__()
         self.channel_attention = ChannelAttention(in_planes, reduction)
@@ -1329,12 +859,9 @@ class CBAM(nn.Module):
         x = self.spatial_attention(x)
         return x
 
-# ---------------------------------------------
-# Modified Autoencoder with CBAM Attention
-# ---------------------------------------------
-class Autoencoder_big_big_CBAM(nn.Module):
+class Autoencoder_CBAM(nn.Module):
     def __init__(self, activation_fn=nn.ReLU):
-        super(Autoencoder_big_big_CBAM, self).__init__()
+        super(Autoencoder_CBAM, self).__init__()
         # Encoder definitions
         self.enc_conv1 = nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1)
         self.enc_act1 = activation_fn()
@@ -1446,62 +973,6 @@ class Autoencoder_big_big_CBAM(nn.Module):
         x = self.dec_conv7(x)
         return x
     
-# ---------------------------------------------
-# Multi-Head Autoencoders
-# ---------------------------------------------
-    
-class MultiHeadAutoencoder(nn.Module):
-    def __init__(self, activation_fn=nn.ReLU):
-        super(MultiHeadAutoencoder, self).__init__()
-
-        # Shared Encoder
-        self.encoder = nn.Sequential(
-            nn.Conv2d(NUMBER_RILEVATIONS_INPUT, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.MaxPool2d(2, stride = 2),
-        )
-
-        # 4 Decoders (one per prediction head)
-        self.decoder = nn.ModuleList([
-            nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(32, 16, kernel_size=3, padding=1),
-            activation_fn(),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
-        )
-            for _ in range(4)
-        ])
-
-    def forward(self, x):
-        latent = self.encoder(x)
-        outputs = [decoder(latent) for decoder in self.decoder]
-        return outputs
     
 class CBAMDecoder(nn.Module):
     def __init__(self, activation_fn=nn.ReLU):
@@ -1540,6 +1011,10 @@ class CBAMDecoder(nn.Module):
 
     def forward(self, x):
         return self.dec(x)
+    
+######################################
+#       MULTI-HEAD MODELS            #
+######################################
 
 class MultiHeadCBAMAutoencoder(nn.Module):
     def __init__(self, activation_fn=nn.ReLU):
@@ -1582,124 +1057,3 @@ class MultiHeadCBAMAutoencoder(nn.Module):
     def forward(self, x):
         latent = self.encoder(x)
         return [decoder(latent) for decoder in self.decoders]
-
-class UNetDecoder(nn.Module):
-    def __init__(self, features, output_channels=1, activation_fn=nn.ReLU):
-        super(UNetDecoder, self).__init__()
-        self.decoder = nn.ModuleList()
-
-        for feature in reversed(features):
-            self.decoder.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
-            )
-            self.decoder.append(DoubleConv(feature * 2, feature, activation_fn))
-
-        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
-
-    def forward(self, x, skip_connections):
-        skip_connections = skip_connections[::-1]
-        for i in range(0, len(self.decoder), 2):
-            x = self.decoder[i](x)  # upsample
-            skip_connection = skip_connections[i // 2]
-            if x.shape != skip_connection.shape:
-                x = torchvision.transforms.functional.center_crop(skip_connection, x.shape[2:])
-            x = torch.cat((skip_connection, x), dim=1)
-            x = self.decoder[i + 1](x)  # DoubleConv
-        return self.final_conv(x)
-
-class MultiHeadUNetAutoencoder(nn.Module):
-    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[32, 64, 128, 256], activation_fn=nn.ReLU, num_heads=4):
-        super(MultiHeadUNetAutoencoder, self).__init__()
-        self.encoder = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Shared Encoder
-        in_channels = input_channels
-        for feature in features:
-            self.encoder.append(DoubleConv(in_channels, feature, activation_fn))
-            in_channels = feature
-
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2, activation_fn)
-
-        # Multiple decoders
-        self.decoders = nn.ModuleList([
-            UNetDecoder(features, output_channels, activation_fn) for _ in range(num_heads)
-        ])
-
-    def forward(self, x):
-        skip_connections = []
-        for down in self.encoder:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
-
-        bottleneck_output = self.bottleneck(x)
-        outputs = [decoder(bottleneck_output, skip_connections) for decoder in self.decoders]
-        return outputs
-
-class DoubleConvCBAM(nn.Module):
-    def __init__(self, in_channels, out_channels, activation_fn=nn.ReLU):
-        super(DoubleConvCBAM, self).__init__()
-        self.double_conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            activation_fn(),
-            CBAM(out_channels),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            activation_fn(),
-            CBAM(out_channels)
-        )
-
-    def forward(self, x):
-        return self.double_conv(x)
-
-class UNetCBAMDecoder(nn.Module):
-    def __init__(self, features, output_channels=1, activation_fn=nn.ReLU):
-        super(UNetCBAMDecoder, self).__init__()
-        self.decoder = nn.ModuleList()
-
-        for feature in reversed(features):
-            self.decoder.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
-            )
-            self.decoder.append(DoubleConvCBAM(feature * 2, feature, activation_fn))
-
-        self.final_conv = nn.Conv2d(features[0], output_channels, kernel_size=1)
-
-    def forward(self, x, skip_connections):
-        skip_connections = skip_connections[::-1]
-        for i in range(0, len(self.decoder), 2):
-            x = self.decoder[i](x)  # upsample
-            skip_connection = skip_connections[i // 2]
-            if x.shape != skip_connection.shape:
-                skip_connection = torchvision.transforms.functional.center_crop(skip_connection, x.shape[2:])
-            x = torch.cat((skip_connection, x), dim=1)
-            x = self.decoder[i + 1](x)  # DoubleConvCBAM + CBAM
-        return self.final_conv(x)
-
-class MultiHeadCBAMUNetAutoencoder(nn.Module):
-    def __init__(self, input_channels=NUMBER_RILEVATIONS_INPUT, output_channels=1, features=[32, 64, 128, 256], activation_fn=nn.ReLU, num_heads=4):
-        super(MultiHeadCBAMUNetAutoencoder, self).__init__()
-        self.encoder = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        in_channels = input_channels
-        for feature in features:
-            self.encoder.append(DoubleConvCBAM(in_channels, feature, activation_fn))
-            in_channels = feature
-
-        self.bottleneck = DoubleConvCBAM(features[-1], features[-1]*2, activation_fn)
-
-        self.decoders = nn.ModuleList([
-            UNetCBAMDecoder(features, output_channels, activation_fn) for _ in range(num_heads)
-        ])
-
-    def forward(self, x):
-        skip_connections = []
-        for down in self.encoder:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
-
-        bottleneck_output = self.bottleneck(x)
-        outputs = [decoder(bottleneck_output, skip_connections) for decoder in self.decoders]
-        return outputs
