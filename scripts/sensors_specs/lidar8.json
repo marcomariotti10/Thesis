@@ -1,0 +1,42 @@
+{
+    "actors" : [
+        {
+            "name" : "lidar8",
+            "location" : {
+                "x": -5.97,
+                "y": 28.63, 
+                "z": 6.0
+            },
+            "rotation" : {
+                "pitch" : 0.0,
+                "yaw" : 0.0,
+                "roll" : 0.0
+            },
+            "sensors" : [
+                {
+                    "bp_type": "sensor.lidar.ray_cast",
+                    "bp_parameters" : {
+                        "role_name":            "lidar",
+                        "range":                "30.0",
+                        "upper_fov":            "0.0",
+                        "lower_fov":            "-90.0",
+                        "channels":             "128.0",
+                        "rotation_frequency":   "58.8",
+                        "points_per_second":    "520000",
+                        "sensor_tick":          "0.1"
+                    },
+                    "location" : {
+                        "x": 0.0,
+                        "y": 0.0, 
+                        "z": 0.0
+                    },
+                    "rotation" : {
+                        "pitch" : 0.0,
+                        "yaw" : 0.0,
+                        "roll" : 0.0
+                    }
+                }
+            ]
+        }
+    ]
+}

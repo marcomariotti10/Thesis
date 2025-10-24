@@ -1,94 +1,142 @@
-# Vehicle/people detection and tracking for V2I cooperation and smart traffic management
+# Thesis Project: V2I-Based Framework for Road User Future Position Prediction using LiDAR HeightMap
 
-This project provides a complete pipeline for generating synthetic LiDAR data via CARLA simulation, preprocessing it into heightmaps, and training a segmentation multi-head neural network for prediction of the future positions of actors at multiple time instant. Also, visualization of the predictions and model performance.
+This repository contains the complete implementation of a thesis project focused on autonomous vehicle perception using LiDAR sensors and deep learning models. The project includes data generation through CARLA simulation, preprocessing pipelines, and neural network training for occupancy grid prediction.
+
+## 🚗 Project Overview
+
+This thesis project implements an end-to-end pipeline for autonomous vehicle perception using:
+- **CARLA Simulator** for realistic driving scenario generation
+- **Multi-LiDAR sensor arrays** for 360° environmental perception  
+- **Occupancy grid representations** for spatial understanding
+- **Deep learning models** (Autoencoders and Diffusion models) for future state prediction
 
 ## 📁 Project Structure
 
-### `config/`
-Configuration scripts and sensor map parameters.
-- `constants.py`: Stores global constants and path used across modules.
-- `functions.py`: General functions used across multiple modules.
-- `map_03_final/`: Contains `.json` files describing LiDAR sensor layouts for a CARLA map '10 HD'.
+```
+├── scripts/                   # Main execution scripts and configuration
+│   ├── CLI.py                 # Command-line interface for the entire framework
+│   ├── settings.py            # Global configuration parameters
+│   └── sensors_specs/         # LiDAR sensor configuration files
+│       ├── lidar1.json        # Individual sensor specifications
+│       ├── lidar2.json        # (12 total sensors)
+│       └── ...
+│
+└── src/                            # Source code modules
+    ├── config/                     # Configuration and helper modules
+    │   ├── directories.py          # Directory structure management
+    │   ├── helpers.py              # Utility functions
+    │   └── model_architectures.py  # Neural network architectures
+    │
+    ├── data_generation/       # CARLA simulation and data collection
+    │   ├── simulation.py      # Main simulation controller
+    │   ├── sensors.py         # LiDAR sensor implementation
+    │   ├── snapshots.py       # Data snapshot management
+    │   └── spawn_actors.py    # Vehicle and pedestrian spawning
+    │
+    ├── preprocessing/              # Data preprocessing pipeline
+    │   ├── convert_pointcloud.py   # Point cloud to occupancy grid conversion
+    │   ├── convert_snapshot.py     # Snapshot format conversion
+    │   ├── filtering_snapshot.py   # Data filtering and cleaning
+    │   ├── sync_data.py            # Multi-sensor data synchronization
+    │   ├── augment_combine.py      # Data augmentation techniques
+    │   ├── build_ffcv.py           # Fast data loading optimization
+    │   ├── fit_scaler.py           # Data normalization
+    │   └── shard_dataset.py        # Dataset partitioning
+    │
+    ├── models/                # Deep learning models
+    │   ├── autoencoder.py     # Autoencoder implementation and training
+    │   └── diffusion.py       # Diffusion model implementation and training
+    │
+    └── viz/                    # Visualization and analysis tools
+        ├── plot_pointcloud.py  # Point cloud visualization
+        ├── plot_grid.py        # Heightmap
+        
+         visualization
+        ├── plot_autoencoder.py # Autoencoder results visualization
+        └── plot_diffusion.py   # Diffusion model results visualization
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+```bash
+# Core dependencies
+pip install torch torchvision torchaudio
+
+# Computer vision and scientific computing
+
+pip install opencv-python numpy matplotlib scipy
+
+# Machine learning and data processing
+pip install scikit-learn pandas
+
+# 3D visualization and processing
+pip install open3d
+
+# Model utilities and performance optimization
+pip install torchsummary ffcv
+
+# CARLA Python API (ensure CARLA simulator is installed)
+pip install carla
+
+# Install CARLA Simulator (0.9.11+)
+# Download from: https://carla.org/
+```
+
+### Setup
+1. **Configure Project Path**: Edit `HOME` variable in `scripts/settings.py`
+2. **Verify CARLA Installation**: Ensure CARLA server is accessible
+3. **Check Sensor Configurations**: Review `scripts/sensors_specs/` files
+
+### Running the Framework
+```bash
+# Start the interactive framework
+cd scripts/
+python CLI.py
+
+# Follow the menu prompts:
+# 1. Generate Data → Set up simulation and collect sensor data
+# 2. Preprocess Data → Convert and augment the collected data  
+# 3. Train Neural Network → Train autoencoder or diffusion models
+# 4. Visualization → Analyze results and generate plots
+```
+
+## 🔧 Advanced Usage
+
+### Custom Sensor Configurations
+Modify JSON files in `sensors_specs/` to adjust:
+- Sensor positions and orientations
+- LiDAR specifications (range, resolution, FOV)
+- Data collection parameters
+
+### Hyperparameter Tuning
+Edit `settings.py` to customize:
+- Grid resolution and dimensions
+- Augmentation strategies and intensities
+- Training parameters and model architectures
+- Diffusion noise schedules
+
+### Custom Models
+Extend `src/models/` with new architectures:
+- Implement in `model_architectures.py`
+- Add training scripts following existing patterns
+- Integrate with CLI framework
+
+## 📊 Output and Results
+
+The framework generates:
+- **Raw Data**: Point clouds and sensor measurements
+- **Processed Data**: Occupancy grids and synchronized datasets  
+- **Trained Models**: Saved model checkpoints and configurations
+- **Visualizations**: Plots, animations, and analysis reports
+
+
+## 📄 License
+
+This project is part of academic research. Please refer to institutional guidelines for usage and distribution.
 
 ---
 
-### `data_geneneration/`
-Modules for generating synthetic data from simulation environments.
-- `generate_simulation.py`: Main script to load the world inside CARLA simulation.
-- `local_sim_utility.py`: Local utility functions used during simulation generation.
-- `save_snapshot.py`: Handles the saving of simulations snapshots to capture actors bounding boxes.
-- `sensor.py`: Spawn lidar sensors inside the simulation.
-- `spawn_objects.py`: Adds dynamic objects (cars, pedestrians, etc.) into the simulated world.
-- `utility.py`: Generic utilities for data generation.
-
----
-
-### `preprocessing/`
-Handles transformation of raw LiDAR data into usable formats for neural networks.
-- `filter_grid.py`: Applies filtering ro remove bounfing boxes without sufficient lidar point inside.
-- `LiDAR_grid.py`: Converts LiDAR scans to heightmap representations.
-- `occupancy_grid.py`: Generates occupancy grid maps from simulation snapshot.
-- `syncronization.py`: Aligns sensor readings with simulation snapshots over time.
-- `start.py`: Entry point to run the full preprocessing pipeline.
-
----
-
-### `dataset_division/`
-Takes preprocessed data and prepares it for training.
-- `generate_chuncks.py`: Splits datasets into chunks.
-- `generate_ffcv.py`: Converts data into `.ffcv` format for fast loading.
-- `augmentation.py`: Applies augmentations to training data.
-- `combine_augmentation.py`: Combines standard data with augmented data.
-- `scaler.py`: Normalization of the data.
-- `start.py`: Executes dataset splitting and export pipeline.
-
----
-
-### `neural_network/`
-Definition and training of the neural network models.
-- `NN_autoencoder.py`: Training og a single-head autoencoder network for the prediction of one single future instant.
-- `NN_autoencoder_multi.py`: Multi-channel variant of the autoencoder for multiple simultaneous predictions.
-- `train_encoder.py`: Main script to train the neural network encoder, without the heads.
-- `ensemble.py`: Logic for combining predictions from multiple models (ensembles).
-
----
-
-### `utils/`
-Support scripts for data analysis and training utility.
-- `eigenimage.py`: Computes principal components (eigenimages) from the train, test and validation set.
-- `compare_eigenimage.py`: Compares eigenimages and calculate distance metrics.
-- `grid_search.py`: Grid search over hyperparameters of the network.
-
----
-
-### `visualization/`
-Visual output generation from data and models.
-- `results_autoencoder.py`: Plots confusion matrix and metrics.
-- `show_grid_map.py`: Visualization of heightmaps and bounding boxes.
-- `show_lidar_data.py`: Visualization of raw LiDAR point clouds and bounding boxes.
-- `visualize_predictions.py`: Shows predictions vs. ground truth from trained models.
-
----
-
-## 🚀 Workflow Overview
-
-1. **Data Generation**:  
-   Run `data_geneneration/generate_simulation.py` to generate synthetic LiDAR data.
-
-2. **Preprocessing**:  
-   Use `preprocessing/start.py` to transform the raw data into heightmap(inputs) and occupancy grid maps (targets).
-
-3. **Dataset Preparation**:  
-   Use `dataset_division/start.py` to split, augment, and convert the data into train/val/test sets in FFCV format.
-
-4. **Training**:  
-   Launch model training via `NN_autoencoder.py` or `NN_autoencoder_multi.py`.
-
-5. **Visualization and Analysis**:  
-   Use scripts in `visualization/` and to visualize results.
-
----
-
-## 📌 Notes
-- Python 3.7+ is recommended.
-- Ensure simulation tools or CARLA (if used) are properly installed for data generation.
+**Author**: Marco Mariotti  
+**Institution**: Polytechnic of Milan 
+**Year**: 2025
